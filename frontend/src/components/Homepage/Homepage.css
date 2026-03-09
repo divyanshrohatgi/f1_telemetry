@@ -1,5 +1,130 @@
 /* Homepage — F1.com-inspired dark cinematic design */
 
+/* ── F1-STYLE HEADER ───────────────────────────── */
+
+.f1-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(17, 17, 17, 0.98);
+  backdrop-filter: blur(12px);
+}
+
+.f1-header-accent {
+  height: 4px;
+  background: linear-gradient(90deg, #E10600 0%, #E10600 30%, transparent 100%);
+}
+
+.f1-header-main {
+  border-bottom: 1px solid #2A2A2A;
+}
+
+.f1-header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  gap: 32px;
+}
+
+.f1-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.f1-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.f1-nav-item {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.f1-nav-item:hover,
+.f1-nav-item.hovered {
+  color: #fff;
+}
+
+.f1-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.f1-signin-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.f1-signin-btn:hover {
+  border-color: #888;
+  background: rgba(255,255,255,0.05);
+}
+
+.f1-subscribe-btn {
+  background: #E10600;
+  border: none;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.f1-subscribe-btn:hover {
+  background: #C40500;
+}
+
+@media (max-width: 900px) {
+  .f1-nav {
+    display: none;
+  }
+  .f1-header-inner {
+    padding: 0 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .f1-signin-btn span {
+    display: none;
+  }
+}
+
+/* ── ANIMATIONS ────────────────────────────────── */
+
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -43,30 +168,81 @@
 
 .hero-wrapper {
   position: relative;
-  min-height: 520px;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+  min-height: 560px;
+  background: #0D0D0D;
   overflow: hidden;
   animation: fade-in 0.6s ease-out;
 }
 
+/* Speed lines effect - top right */
 .hero-wrapper::before {
   content: '';
   position: absolute;
-  top: 0; right: 0;
-  width: 60%;
-  height: 100%;
-  background: radial-gradient(ellipse at 80% 50%, rgba(225, 6, 0, 0.06) 0%, transparent 70%);
+  top: 10%;
+  right: -10%;
+  width: 80%;
+  height: 50%;
+  background: 
+    repeating-linear-gradient(
+      -15deg,
+      transparent,
+      transparent 8px,
+      rgba(255,255,255,0.015) 8px,
+      rgba(255,255,255,0.015) 10px
+    );
+  transform: skewX(-15deg);
   pointer-events: none;
 }
 
+/* Red glow accent */
 .hero-wrapper::after {
   content: '';
   position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 120px;
+  top: 0;
+  left: 0;
+  width: 35%;
+  height: 5px;
+  background: linear-gradient(90deg, #E10600 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Bottom gradient fade */
+.hero-bottom-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
   background: linear-gradient(to top, #111 0%, transparent 100%);
   pointer-events: none;
   z-index: 1;
+}
+
+/* Speed lines overlay */
+.hero-speed-lines {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 70%;
+  background-image: 
+    repeating-linear-gradient(
+      -10deg,
+      transparent 0px,
+      transparent 20px,
+      rgba(255,255,255,0.012) 20px,
+      rgba(255,255,255,0.012) 22px
+    ),
+    repeating-linear-gradient(
+      -10deg,
+      transparent 0px,
+      transparent 60px,
+      rgba(255,255,255,0.02) 60px,
+      rgba(255,255,255,0.02) 63px
+    );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hero-inner {
@@ -100,38 +276,42 @@
 .live-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #E10600;
   color: #fff;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  margin-bottom: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .live-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #fff;
-  animation: pulse-live 1.5s ease-in-out infinite;
+  animation: pulse-live 1.2s ease-in-out infinite;
 }
 
 .hero-gp-name {
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 900;
   color: #fff;
-  letter-spacing: 0.02em;
-  line-height: 1.05;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   margin: 0;
   text-transform: uppercase;
+  font-style: italic;
+}
+
+.hero-gp-name span {
+  font-style: normal;
 }
 
 @media (max-width: 800px) {
-  .hero-gp-name { font-size: 36px; }
+  .hero-gp-name { font-size: 32px; }
 }
 
 .hero-circuit-label {
@@ -160,44 +340,44 @@
 
 /* Timing tower */
 .timing-tower {
-  background: rgba(0,0,0,0.4);
-  border: 1px solid #2A2A2A;
-  border-radius: 8px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #333;
+  border-radius: 6px;
   padding: 20px 24px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
 }
 
 .lap-counter {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: #1A1A1A;
-  border: 1px solid #333;
+  gap: 8px;
+  background: rgba(50,50,50,0.6);
+  border: 1px solid #444;
   border-radius: 4px;
-  padding: 4px 12px;
-  margin-bottom: 16px;
+  padding: 6px 14px;
+  margin-bottom: 18px;
 }
 
 .lap-label {
-  font-size: 9px;
+  font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
   color: #888;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
 }
 
 .lap-number {
-  font-size: 36px;
+  font-size: 42px;
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 800;
+  font-weight: 300;
   color: #fff;
   line-height: 1;
 }
 
 .lap-total {
-  font-size: 16px;
+  font-size: 18px;
   font-family: 'JetBrains Mono', monospace;
   color: #666;
-  font-weight: 400;
+  font-weight: 300;
 }
 
 .timing-row {
@@ -250,47 +430,52 @@
 }
 
 .timing-gap {
-  font-size: 12px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  padding: 3px 10px;
-  border-radius: 3px;
-  background: #222;
-  color: #ccc;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: rgba(80,80,80,0.5);
+  color: #bbb;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .timing-gap.leader {
-  background: #333;
+  background: rgba(100,100,100,0.6);
   color: #fff;
   font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
-/* CTA button */
+/* CTA button - F1.com style */
 .hero-cta {
   display: block;
   width: 100%;
   margin-top: 20px;
-  padding: 14px 0;
+  padding: 15px 0;
   background: #E10600;
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.15em;
   cursor: pointer;
   text-align: center;
-  transition: background 0.15s, transform 0.1s;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
 }
 
 .hero-cta:hover {
-  background: #C40500;
+  background: #ff1a1a;
+  box-shadow: 0 4px 16px rgba(225, 6, 0, 0.4);
   transform: translateY(-1px);
 }
 
 .hero-cta:active {
   transform: translateY(0);
+  box-shadow: none;
 }
 
 /* ── WEEKEND STRIP ─────────────────────────────── */
@@ -339,45 +524,47 @@
 
 .featured-card {
   background: #1A1A1A;
-  border: 1px solid #2A2A2A;
-  border-radius: 8px;
+  border: none;
+  border-radius: 4px;
   overflow: hidden;
-  transition: transform 0.2s, border-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
 }
 
 .featured-card:hover {
   transform: translateY(-4px);
-  border-color: #444;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.featured-card:hover .featured-card-image img {
+  filter: grayscale(50%) contrast(1.15);
+  transform: scale(1.03);
 }
 
 .featured-card-image {
-  height: 160px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  background: #222;
+}
+
+.featured-card-image img {
+  transition: filter 0.3s, transform 0.3s;
 }
 
 .featured-card-body {
-  padding: 16px 18px;
-}
-
-.featured-card-tag {
-  font-size: 9px;
-  font-family: 'JetBrains Mono', monospace;
-  color: #E10600;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  background: #1A1A1A;
 }
 
 .featured-card-title {
-  font-size: 14px;
-  color: #F0F0F0;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 13px;
+  color: #ccc;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 /* ── STANDINGS STRIP ───────────────────────────── */

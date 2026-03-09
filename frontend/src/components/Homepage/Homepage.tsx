@@ -66,87 +66,80 @@ function splitName(fullName: string): [string, string] {
 // ─── HOMEPAGE HEADER ────────────────────────────────────────────────────────
 
 function HomepageHeader({ onNavigate }: { onNavigate: (mode: AppMode) => void }) {
+  const [hoveredNav, setHoveredNav] = useState<string | null>(null);
+
+  const navItems = [
+    { label: 'Latest', key: 'latest' },
+    { label: 'Schedule', key: 'schedule' },
+    { label: 'Standings', key: 'standings' },
+    { label: 'Drivers', key: 'drivers' },
+    { label: 'Teams', key: 'teams' },
+    { label: 'Live Timing', key: 'live' },
+  ];
+
   return (
-    <header style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      background: 'rgba(17, 17, 17, 0.95)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid #2A2A2A',
-      padding: '0 40px',
-    }}>
-      <div style={{
-        maxWidth: 1200,
-        margin: '0 auto',
-        height: 56,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 4, background: '#E10600',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ fontSize: 10, color: '#fff', fontWeight: 900 }}>F1</span>
+    <header className="f1-header">
+      {/* Top red accent bar */}
+      <div className="f1-header-accent" />
+      
+      {/* Main header content */}
+      <div className="f1-header-main">
+        <div className="f1-header-inner">
+          {/* Logo */}
+          <div 
+            className="f1-logo" 
+            onClick={() => onNavigate('home')}
+            style={{ cursor: 'pointer' }}
+          >
+            <svg viewBox="0 0 80 20" fill="none" style={{ height: 28, width: 'auto' }}>
+              <path d="M5 0h25l-5 20H0l5-20z" fill="#E10600"/>
+              <path d="M12 4h10l-3 12H9l3-12z" fill="#fff"/>
+              <path d="M35 0h12l-5 20H30l5-20zm18 0h10l-5 20H46l5-20z" fill="#fff"/>
+            </svg>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.04em', color: '#F0F0F0' }}>
-              GRID
-            </span>
-            <span style={{ fontWeight: 400, fontSize: 16, letterSpacing: '0.04em', color: '#E10600' }}>
-              INSIGHT
-            </span>
+
+          {/* Navigation */}
+          <nav className="f1-nav">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                className={`f1-nav-item ${hoveredNav === item.key ? 'hovered' : ''}`}
+                onMouseEnter={() => setHoveredNav(item.key)}
+                onMouseLeave={() => setHoveredNav(null)}
+                onClick={() => {
+                  if (item.key === 'live' || item.key === 'latest') {
+                    onNavigate('latest');
+                  } else if (item.key === 'schedule' || item.key === 'standings' || item.key === 'drivers' || item.key === 'teams') {
+                    onNavigate('latest');
+                  }
+                }}
+              >
+                {item.label}
+                {['Schedule', 'Standings', 'Drivers', 'Teams'].includes(item.label) && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ marginLeft: 4 }}>
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  </svg>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Right actions */}
+          <div className="f1-header-actions">
+            <button className="f1-signin-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+              </svg>
+              SIGN IN
+            </button>
+            <button className="f1-subscribe-btn" onClick={() => onNavigate('analysis')}>
+              ANALYSIS
+            </button>
           </div>
         </div>
-
-        {/* Navigation */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NavButton label="LATEST RACE" onClick={() => onNavigate('latest')} accent="#E10600" />
-          <NavButton label="ANALYSIS" onClick={() => onNavigate('analysis')} accent="#00FF87" />
-        </nav>
       </div>
     </header>
-  );
-}
-
-function NavButton({ label, onClick, accent }: { label: string; onClick: () => void; accent: string }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 14px',
-        borderRadius: 4,
-        border: `1px solid ${accent}44`,
-        background: `${accent}11`,
-        color: accent,
-        fontSize: 10,
-        fontFamily: 'JetBrains Mono, monospace',
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = `${accent}22`;
-        e.currentTarget.style.borderColor = `${accent}66`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = `${accent}11`;
-        e.currentTarget.style.borderColor = `${accent}44`;
-      }}
-    >
-      <span style={{
-        width: 6, height: 6, borderRadius: '50%',
-        background: accent, display: 'inline-block',
-      }} />
-      {label}
-    </button>
   );
 }
 
@@ -193,26 +186,34 @@ function HeroSection({
 
   const driversToShow = hero.top5.slice(0, 5);
 
-  return (
+return (
     <section className="hero-wrapper">
+      {/* Speed lines effect */}
+      <div className="hero-speed-lines" />
+      {/* Bottom gradient fade */}
+      <div className="hero-bottom-fade" />
+      
       <div className="hero-inner">
         {/* LEFT: GP Name + Circuit */}
         <div className="hero-left">
-          {/* LIVE badge + weather */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+{/* LIVE badge + temperature */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <div className="live-badge">
               <div className="live-dot" />
-              LATEST RESULT
+              LIVE
             </div>
-            <span style={{ fontSize: 12, color: '#888', fontFamily: 'JetBrains Mono' }}>
-              ROUND {hero.round_number}
+            <span style={{ fontSize: 13, color: '#999', fontFamily: 'JetBrains Mono', fontWeight: 500 }}>
+              23.1°C
             </span>
           </div>
 
-          {/* GP Name — huge bold */}
-          <h1 className="hero-gp-name">
-            {hero.gp_name.toUpperCase()}
-            <span style={{ color: '#666', fontWeight: 300, marginLeft: 12 }}>{hero.year}</span>
+          {/* GP Name — F1.com style with arrow */}
+          <h1 className="hero-gp-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontStyle: 'italic' }}>{hero.gp_name.toUpperCase().split(' ')[0]}</span>
+            <span style={{ fontWeight: 300, fontStyle: 'normal' }}>{hero.year}</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8 }}>
+              <path d="M9 6L15 12L9 18" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </h1>
 
           {/* Circuit label */}
@@ -317,9 +318,9 @@ function HeroSection({
               );
             })}
 
-            {/* CTA */}
+{/* CTA */}
             <button className="hero-cta" onClick={() => onNavigate('latest')}>
-              VIEW FULL RESULTS
+              JOIN LIVE SESSION
             </button>
           </div>
         </div>
@@ -358,10 +359,11 @@ function WeekendStrip({ data }: { data: HomepageData }) {
 
 // ─── FEATURED INSIGHTS (3-col card grid like F1.com) ────────────────────────
 
+// Grayscale backgrounds with subtle gradients for F1.com look
 const INSIGHT_GRADIENTS: Record<string, string> = {
-  biggest_mover: 'linear-gradient(135deg, #E10600 0%, #880000 100%)',
-  speed_king: 'linear-gradient(135deg, #FFD700 0%, #886600 100%)',
-  best_strategy: 'linear-gradient(135deg, #27F4D2 0%, #0A6B5C 100%)',
+  biggest_mover: 'linear-gradient(145deg, #2A2A2A 0%, #1A1A1A 100%)',
+  speed_king: 'linear-gradient(145deg, #333 0%, #1A1A1A 100%)',
+  best_strategy: 'linear-gradient(145deg, #2A2A2A 0%, #111 100%)',
 };
 
 function FeaturedInsights({ data, onNavigate }: { data: HomepageData; onNavigate: (mode: AppMode) => void }) {
@@ -380,43 +382,53 @@ function FeaturedInsights({ data, onNavigate }: { data: HomepageData; onNavigate
               className="featured-card-image"
               style={{ background: INSIGHT_GRADIENTS[insight.type] ?? 'linear-gradient(135deg, #333 0%, #111 100%)' }}
             >
-              {insight.headshot_url ? (
-                <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+{insight.headshot_url ? (
+                <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+                  {/* Grayscale driver photo */}
                   <img
                     src={insight.headshot_url}
                     alt={insight.driver_code ?? ''}
                     style={{
-                      height: '110%',
+                      width: '100%',
+                      height: '100%',
                       objectFit: 'cover',
                       objectPosition: 'top center',
-                      position: 'absolute',
-                      bottom: 0,
-                      opacity: 0.8,
-                      maskImage: 'linear-gradient(to top, transparent 0%, black 50%)',
-                      WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 50%)',
+                      filter: 'grayscale(100%) contrast(1.1)',
+                      opacity: 0.85,
                     }}
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
-                  <div style={{ position: 'absolute', bottom: 16, zIndex: 2, textAlign: 'center', width: '100%' }}>
-                    <div style={{ fontSize: 26, fontFamily: 'JetBrains Mono', fontWeight: 800, color: '#fff', letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
-                      {insight.headline}
-                    </div>
-                    <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: 'rgba(255,255,255,0.9)', marginTop: 4, letterSpacing: '0.1em' }}>
-                      {insight.driver_code}
+                  {/* Overlay gradient for text readability */}
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%',
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%)',
+                  }} />
+                  {/* Text overlay like F1.com */}
+                  <div style={{ position: 'absolute', bottom: 12, left: 14, right: 14, zIndex: 2 }}>
+                    <div style={{ 
+                      fontSize: 14, fontWeight: 800, color: '#fff', 
+                      lineHeight: 1.3, textTransform: 'uppercase' as const,
+                      textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                    }}>
+                      {insight.title}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 40, marginBottom: 4 }}>{insight.emoji}</div>
-                  <div style={{ fontSize: 28, fontFamily: 'JetBrains Mono', fontWeight: 800, color: '#fff' }}>
-                    {insight.headline}
+                <div style={{ 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '100%', height: '100%', background: '#222',
+                }}>
+                  <div style={{ 
+                    fontSize: 14, fontWeight: 800, color: '#fff', 
+                    textTransform: 'uppercase' as const, textAlign: 'center', padding: 16,
+                  }}>
+                    {insight.title}
                   </div>
                 </div>
               )}
             </div>
-            <div className="featured-card-body">
-              <div className="featured-card-tag">{insight.title}</div>
+<div className="featured-card-body">
               <div className="featured-card-title">
                 {insight.detail}
               </div>
