@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------------------------
+   GridInsight F1 Dashboard — Global CSS Variables & Base Styles
+   Dark mode is default. Light mode via [data-theme="light"] on <html>.
+   ------------------------------------------------------------------------- */
+
+:root {
+  /* ── Dark theme (default) ─────────────────────────────────────────── */
+  --color-bg: #111111;
+  --color-surface: #1A1A1A;
+  --color-panel: #1E1E1E;
+  --color-elevated: #252525;
+  --color-border: #2E2E2E;
+  --color-muted: #2A2A2A;
+
+  /* F1 Red */
+  --color-f1-red: #E10600;
+
+  /* PitSense brand teal */
+  --color-pitsense: #27F4D2;
+
+  /* Text hierarchy */
+  --color-text-primary: #F0F0F0;
+  --color-text-secondary: #888888;
+  --color-text-tertiary: #555555;
+
+  /* Tyre compound colors */
+  --compound-soft: #FF3333;
+  --compound-medium: #FFC906;
+  --compound-hard: #CCCCCC;
+  --compound-inter: #39B54A;
+  --compound-wet: #0072C6;
+  --compound-unknown: #666666;
+
+  /* Delta colors */
+  --delta-positive: #00FF87;
+  --delta-negative: #FF4444;
+
+  /* Chart */
+  --chart-gridline: #222222;
+  --chart-axis-text: #555555;
+  --chart-crosshair: rgba(255, 255, 255, 0.25);
+
+  /* Layout */
+  --topbar-height: 42px;
+  --sidebar-width: 240px;
+
+  /* Scrollbar */
+  --scrollbar-track: #161616;
+  --scrollbar-thumb: #333333;
+}
+
+/* ── Light theme overrides ─────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg: #F4F4F5;
+  --color-surface: #FFFFFF;
+  --color-panel: #FAFAFA;
+  --color-elevated: #F0F0F0;
+  --color-border: #E0E0E0;
+  --color-muted: #E8E8E8;
+
+  --color-text-primary: #111111;
+  --color-text-secondary: #555555;
+  --color-text-tertiary: #999999;
+
+  --chart-gridline: #E8E8E8;
+  --chart-axis-text: #888888;
+  --chart-crosshair: rgba(0, 0, 0, 0.15);
+
+  --scrollbar-track: #F0F0F0;
+  --scrollbar-thumb: #CCCCCC;
+}
+
+/* ── Base reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: 'Titillium Web', 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border);
+}
+
+/* ── Typography utilities ────────────────────────────────────────────── */
+.mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* ── Panel card ──────────────────────────────────────────────────────── */
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+/* ── Loading bar (top of page) ───────────────────────────────────────── */
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--color-f1-red);
+  z-index: 9999;
+  transition: width 0.2s ease-out;
+}
+
+/* ── Compound badges ─────────────────────────────────────────────────── */
+.compound-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #111;
+}
+.compound-badge--soft    { background: var(--compound-soft); }
+.compound-badge--medium  { background: var(--compound-medium); color: #111; }
+.compound-badge--hard    { background: var(--compound-hard); color: #111; }
+.compound-badge--inter   { background: var(--compound-inter); }
+.compound-badge--wet     { background: var(--compound-wet); }
+.compound-badge--unknown { background: var(--compound-unknown); color: #ccc; }
+
+/* ── Recharts theme-aware overrides ─────────────────────────────────── */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--chart-gridline) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--color-elevated) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 4px !important;
+  color: var(--color-text-primary) !important;
+}
+
+.recharts-text {
+  fill: var(--chart-axis-text) !important;
+  font-size: 10px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* ── Smooth theme transition ─────────────────────────────────────────── */
+aside, main, header, .panel {
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}

@@ -1,0 +1,93 @@
+"""
+F1 Telemetry Dashboard — FastAPI application entry point.
+
+Run with:
+    uvicorn api.main:app --reload --port 8000
+"""
+
+import logging
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings
+
+# ---------------------------------------------------------------------------
+# Logging setup
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# App creation
+# ---------------------------------------------------------------------------
+app = FastAPI(
+    title="F1 Telemetry Dashboard API",
+    description="Real Formula 1 race analytics powered by FastF1",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# ---------------------------------------------------------------------------
+# CORS — allow React frontend (dev: localhost:5173, prod: same origin)
+# ---------------------------------------------------------------------------
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+app.include_router(sessions.router, prefix="/api", tags=["sessions"])
+app.include_router(laps.router, prefix="/api", tags=["laps"])
+app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
+app.include_router(strategy.router, prefix="/api", tags=["strategy"])
+app.include_router(comparison.router, prefix="/api", tags=["comparison"])
+app.include_router(weather.router, prefix="/api", tags=["weather"])
+app.include_router(prediction.router, prefix="/api", tags=["ml-predictions"])
+app.include_router(pitsense.router,  prefix="/api", tags=["pitsense"])
+app.include_router(results.router,    prefix="/api", tags=["results"])
+app.include_router(standings.router,  prefix="/api", tags=["standings"])
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "f1-telemetry-api"}
+
+
+@app.get("/")
+async def root():
+    return {
+        "message": "F1 Telemetry Dashboard API",
+        "docs": "/docs",
+        "version": "1.0.0"
+    }

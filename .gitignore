@@ -1,0 +1,29 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.env
+frontend/.env
+.env
+.env.*
+
+# FastF1 cache (large binary files — regenerated on first run)
+backend/cache/
+
+# ML models (binary, too large for git — rebuild with train.py)
+backend/ml/saved_models/*.pkl
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE / tools
+.vscode/
+.idea/
+*.swp
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
