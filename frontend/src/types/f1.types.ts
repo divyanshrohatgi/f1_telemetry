@@ -355,7 +355,7 @@ export interface HeroDriver {
   position: number | null;
   driver_code: string;
   full_name: string;
-  team_name: string;
+  team_name?: string;
   team_color: string;
   gap_to_leader: string | null;
   headshot_url?: string;
@@ -378,6 +378,8 @@ export interface HeroData {
   safety_car_count: number;
   circuit_points: CircuitPoint[];
   circuit_rotation: number;
+  circuit_length_km?: number | null;
+  race_distance_km?: number | null;
 }
 
 export interface RaceInsight {
@@ -387,6 +389,7 @@ export interface RaceInsight {
   detail: string;
   emoji: string;
   driver_code?: string;
+  team_color: string;
   headshot_url?: string;
 }
 
@@ -398,6 +401,12 @@ export interface SeasonRaceNode {
   is_completed: boolean;
   is_next: boolean;
   winner?: string;
+  total_laps?: number;
+  circuit_length_km?: number;
+  race_distance_km?: number;
+  lap_record_time?: string;
+  lap_record_driver?: string;
+  lap_record_year?: number;
 }
 
 export interface HomepageData {

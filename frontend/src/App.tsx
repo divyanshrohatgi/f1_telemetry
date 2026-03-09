@@ -100,14 +100,16 @@ const App: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* Top bar — always shown, carries mode switcher */}
-      <TopBar
-        sessionMeta={sessionMeta}
-        isLoading={isLoadingSession}
-        loadingProgress={isLoadingSession ? 60 : 100}
-        mode={mode}
-        onModeChange={setMode}
-      />
+      {/* Top bar — not shown in home mode; Homepage has its own full header */}
+      {mode !== 'home' && (
+        <TopBar
+          sessionMeta={sessionMeta}
+          isLoading={isLoadingSession}
+          loadingProgress={isLoadingSession ? 60 : 100}
+          mode={mode}
+          onModeChange={setMode}
+        />
+      )}
 
       {/* Below top bar */}
       <div
@@ -115,7 +117,7 @@ const App: React.FC = () => {
           display: 'flex',
           flex: 1,
           marginTop: mode === 'home' ? 0 : 'var(--topbar-height)',
-          overflow: 'hidden',
+          overflow: mode === 'home' ? 'auto' : 'hidden',
         }}
       >
         {mode === 'home' ? (

@@ -204,6 +204,7 @@ def get_session_results(
                 "is_best_s1":  is_best(s1, overall_best_s1),
                 "is_best_s2":  is_best(s2, overall_best_s2),
                 "is_best_s3":  is_best(s3, overall_best_s3),
+                "headshot_url": info.get("headshot_url"),
             })
     else:
         # Fallback: build from drivers_info alone (no position ordering)

@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings
+from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, homepage
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -77,6 +77,7 @@ app.include_router(prediction.router, prefix="/api", tags=["ml-predictions"])
 app.include_router(pitsense.router,  prefix="/api", tags=["pitsense"])
 app.include_router(results.router,    prefix="/api", tags=["results"])
 app.include_router(standings.router,  prefix="/api", tags=["standings"])
+app.include_router(homepage.router, prefix="/api/v1", tags=["homepage"])
 
 
 @app.get("/health")

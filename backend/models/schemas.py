@@ -5,7 +5,7 @@ All times are in seconds (float) — timedelta objects from FastF1 are converted
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -367,3 +367,83 @@ class StandingsResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     code: Optional[str] = None
+
+
+class HeroDriver(BaseModel):
+    position: Optional[int]
+    driver_code: str
+    full_name: str
+    team_color: str
+    gap_to_leader: Optional[str]
+    headshot_url: Optional[str] = None
+
+class Point2D(BaseModel):
+    x: float
+    y: float
+
+class HeroRaceResult(BaseModel):
+    year: int
+    gp_name: str
+    country: str
+    circuit_name: str
+    date: str
+    round_number: int
+    total_laps: int
+    top5: List[HeroDriver]
+    
+    fastest_lap_time: Optional[float]
+    fastest_lap_driver: Optional[str]
+    fastest_lap_number: Optional[int]
+    
+    laps_led_driver: Optional[str]
+    laps_led_count: Optional[int]
+    safety_car_count: int
+    
+    circuit_points: Optional[List[dict]] = None
+    circuit_rotation: float = 0.0
+    circuit_length_km: Optional[float] = None
+    race_distance_km: Optional[float] = None
+
+class RaceInsight(BaseModel):
+    type: str # 'biggest_mover', 'speed_king', 'best_strategy'
+    title: str
+    emoji: str
+    driver_code: Optional[str]
+    team_color: str
+    headline: str
+    detail: str
+    headshot_url: Optional[str] = None
+
+class SeasonNode(BaseModel):
+    round_number: int
+    gp_name: str
+    country: str
+    date: str
+    is_completed: bool
+    is_next: bool
+    winner: Optional[str]
+    # Circuit info (from static data)
+    total_laps: Optional[int] = None
+    circuit_length_km: Optional[float] = None
+    race_distance_km: Optional[float] = None
+    lap_record_time: Optional[str] = None
+    lap_record_driver: Optional[str] = None
+    lap_record_year: Optional[int] = None
+
+class HomepageData(BaseModel):
+    hero: Optional[HeroRaceResult]
+    
+    next_race_name: Optional[str]
+    next_race_date: Optional[str]
+    next_race_country: Optional[str]
+    
+    insights: List[RaceInsight]
+    
+    drivers_standings: List[DriverStanding]
+    constructors_standings: List[ConstructorStanding]
+    standings_round: int
+    
+    season_year: int
+    season_nodes: List[SeasonNode]
+    completed_races: int
+    total_races: int
