@@ -1,8 +1,9 @@
 /**
  * F1 Telemetry Dashboard — Root component.
  *
- * Two modes:
- *   latest   → LatestRaceDashboard (f1-dash style timing table, auto-loads latest GP)
+ * Three modes:
+ *   home     → Homepage (F1.com-inspired dark cinematic design with live race data)
+ *   latest   → LatestRaceDashboard (timing table, schedule, standings)
  *   analysis → Historical session analysis (laps / telemetry / comparison / strategy / weather)
  */
 
@@ -21,12 +22,14 @@ import WeatherPanel from './components/WeatherPanel/WeatherPanel';
 import PitSense from './components/DegradationPredictor/PitSense';
 import EmptyState from './components/common/EmptyState';
 import LatestRaceDashboard from './components/LatestRace/LatestRaceDashboard';
+import Homepage from './components/Homepage/Homepage';
+import Footer from './components/Footer/Footer';
 
 import { useSessionData } from './hooks/useSessionData';
 import type { AppMode, TabView, SessionMetadata } from './types/f1.types';
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<AppMode>('latest');
+  const [mode, setMode] = useState<AppMode>('home');
 
   const {
     season,
@@ -45,7 +48,9 @@ const App: React.FC = () => {
 
   // Dynamic page title for SEO / tab clarity
   useEffect(() => {
-    if (mode === 'latest') {
+    if (mode === 'home') {
+      document.title = 'GridInsight — F1 Telemetry Analysis, Strategy & AI Pit Predictions';
+    } else if (mode === 'latest') {
       document.title = 'GridInsight — Latest Race';
     } else if (sessionMeta) {
       document.title = `${sessionMeta.gp_name} ${sessionMeta.session_type} ${sessionMeta.year} — GridInsight`;
@@ -109,11 +114,17 @@ const App: React.FC = () => {
         style={{
           display: 'flex',
           flex: 1,
-          marginTop: 'var(--topbar-height)',
+          marginTop: mode === 'home' ? 0 : 'var(--topbar-height)',
           overflow: 'hidden',
         }}
       >
-        {mode === 'latest' ? (
+        {mode === 'home' ? (
+          /* ── HOMEPAGE ────────────────────────────────────────────── */
+          <main style={{ flex: 1, overflow: 'auto', background: '#111' }}>
+            <Homepage onNavigate={setMode} />
+            <Footer />
+          </main>
+        ) : mode === 'latest' ? (
           /* ── LATEST RACE ─────────────────────────────────────────── */
           <main style={{ flex: 1, overflow: 'hidden', background: 'var(--color-bg)' }}>
             <LatestRaceDashboard />

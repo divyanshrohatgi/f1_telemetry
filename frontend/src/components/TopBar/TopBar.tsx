@@ -21,6 +21,9 @@ const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const { theme, toggleTheme, isDark } = useTheme();
 
+  // Hide TopBar completely when in home mode (Homepage has its own header)
+  if (mode === 'home') return null;
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex items-center"
@@ -66,6 +69,8 @@ const TopBar: React.FC<TopBarProps> = ({
 
       {/* Mode switcher */}
       <div className="flex items-center gap-1 px-3 shrink-0">
+        <ModePill label="HOME" active={false} onClick={() => onModeChange('home')}
+          activeColor="#888" isDark={isDark} />
         <ModePill label="LATEST RACE" active={mode === 'latest'} onClick={() => onModeChange('latest')}
           activeColor="var(--color-f1-red)" isDark={isDark} />
         <ModePill label="ANALYSIS" active={mode === 'analysis'} onClick={() => onModeChange('analysis')}
