@@ -15,6 +15,7 @@ from models.schemas import (
     PitWindowResponse,
 )
 from ml.model_registry import predict_degradation_curve, predict_pit_window
+from services.simulator import _get_pit_loss
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -71,6 +72,20 @@ async def pitsense_window(request: PitWindowRequest):
         raise HTTPException(status_code=500, detail=f"PitSense window prediction failed: {exc}")
 
     return PitWindowResponse(**result)
+
+
+@router.get("/v1/pitsense/pit-loss/{circuit_id}")
+async def pitsense_pit_loss(circuit_id: str):
+    """Return pit stop time losses for green, safety car, and VSC conditions."""
+    green = _get_pit_loss(circuit_id, "green")
+    sc = max(green - 6.0, 15.0)
+    vsc = max(green - 3.0, 18.0)
+    return {
+        "circuit_id": circuit_id,
+        "green": round(green, 1),
+        "sc": round(sc, 1),
+        "vsc": round(vsc, 1),
+    }
 
 
 def _find_cliff_lap(curve: list[dict]) -> Optional[int]:

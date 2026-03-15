@@ -19,8 +19,6 @@ import type {
   LatestRaceInfo,
   StandingsResponse,
   HomepageData,
-  WhatIfRequest,
-  WhatIfResponse,
 } from '../types/f1.types';
 
 const BASE = '/api/v1';
@@ -131,10 +129,6 @@ export const api = {
   /** Homepage data — hero race, standings, schedule. */
   getHomepageData: () =>
     get<HomepageData>('/homepage'),
-
-  /** What-If Simulator — modify one pit stop and recalculate race positions. */
-  whatIfSimulate: (request: WhatIfRequest) =>
-    post<WhatIfResponse>('/whatif/simulate', request),
 };
 
 export { ApiError };

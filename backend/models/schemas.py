@@ -467,51 +467,6 @@ class SeasonNode(BaseModel):
     lap_record_year: Optional[int] = None
 
 
-# ---------------------------------------------------------------------------
-# What-If Simulator schemas
-# ---------------------------------------------------------------------------
-
-class WhatIfChange(BaseModel):
-    driver: str
-    original_pit_lap: int
-    new_pit_lap: int
-    new_compound: str
-
-class WhatIfRequest(BaseModel):
-    year: int
-    gp_name: str
-    session: str = "R"
-    changes: List[WhatIfChange]
-
-class WhatIfLap(BaseModel):
-    lap: int
-    position: int
-    gap: float = 0.0
-    time: float = 0.0
-    compound: str = "UNKNOWN"
-    tyre_age: int = 0
-    is_simulated: bool = False
-
-class DriverFinalResult(BaseModel):
-    driver: str
-    position: int
-    gap: Optional[float] = None
-
-class WhatIfSummary(BaseModel):
-    driver: str
-    actual_position: int
-    simulated_position: int
-    position_change: int
-    time_delta: float
-
-class WhatIfResponse(BaseModel):
-    summary: WhatIfSummary
-    actual_laps: List[WhatIfLap]
-    simulated_laps: List[WhatIfLap]
-    all_drivers_actual_final: List[DriverFinalResult]
-    all_drivers_simulated_final: List[DriverFinalResult]
-
-
 class HomepageData(BaseModel):
     hero: Optional[HeroRaceResult] = None
     next_race_name: Optional[str] = None

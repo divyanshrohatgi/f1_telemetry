@@ -49,10 +49,11 @@ const App: React.FC = () => {
   const [hoveredDriver, setHoveredDriver] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabView>('laps');
   const [selectedLap, setSelectedLap] = useState<number | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-  }, []);
+    document.body.style.overflow = mode === 'home' ? '' : 'hidden';
+  }, [mode]);
 
   // Dynamic page title
   useEffect(() => {
@@ -183,7 +184,22 @@ const App: React.FC = () => {
         ) : (
           /* ── HISTORICAL ANALYSIS ─────────────────────────────────── */
           <>
+            {/* Mobile sidebar toggle */}
+            <button
+              className="md:hidden fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center text-white text-xl shadow-lg"
+              style={{ background: 'var(--color-f1-red)' }}
+              onClick={() => setSidebarOpen(o => !o)}
+            >
+              {sidebarOpen ? '✕' : '☰'}
+            </button>
+
             <aside
+              className={`
+                fixed md:relative inset-y-0 left-0 z-40
+                transition-transform duration-200
+                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                md:translate-x-0
+              `}
               style={{
                 width: 'var(--sidebar-width)',
                 borderRight: '1px solid var(--color-border)',
@@ -192,6 +208,7 @@ const App: React.FC = () => {
                 overflow: 'hidden',
                 background: 'var(--color-bg)',
                 flexShrink: 0,
+                marginTop: 'var(--topbar-height)',
               }}
             >
               <SessionSelector

@@ -11,6 +11,13 @@ frontend/.env
 # FastF1 cache (large binary files — regenerated on first run)
 backend/cache/
 
+# Data files — raw parquets and outputs (rebuild with ml/train.py)
+backend/data/
+
+# Virtual environments
+backend/.venv/
+.venv/
+
 # ML models (binary, too large for git — rebuild with train.py)
 backend/ml/saved_models/*.pkl
 
