@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, simulate, homepage, live
+from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, simulate, homepage, live, whatif
 from api.routes import replay_ws
 
 # ---------------------------------------------------------------------------
@@ -88,6 +88,7 @@ app.include_router(results.router,    prefix="/api", tags=["results"])
 app.include_router(standings.router,  prefix="/api", tags=["standings"])
 app.include_router(homepage.router,   prefix="/api/v1", tags=["homepage"])
 app.include_router(simulate.router,   prefix="/api", tags=["simulate"])
+app.include_router(whatif.router,     prefix="/api", tags=["whatif"])
 app.include_router(live.router,       prefix="/api", tags=["live"])
 app.include_router(replay_ws.router)
 

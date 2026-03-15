@@ -448,80 +448,53 @@ export type AppMode = 'home' | 'latest' | 'analysis';
 export type TabView = 'laps' | 'telemetry' | 'comparison' | 'strategy' | 'degradation' | 'weather' | 'simulator' | 'replay';
 
 // ---------------------------------------------------------------------------
-// Homepage Data
+// What-If Simulator
 // ---------------------------------------------------------------------------
 
-export interface HeroDriver {
-  position: number | null;
-  driver_code: string;
-  full_name: string;
-  team_name?: string;
-  team_color: string;
-  gap_to_leader: string | null;
-  headshot_url?: string;
+export interface WhatIfChange {
+  driver: string;
+  original_pit_lap: number;
+  new_pit_lap: number;
+  new_compound: string;
 }
 
-export interface HeroData {
+export interface WhatIfRequest {
   year: number;
-  round_number: number;
   gp_name: string;
-  country: string;
-  circuit_name: string;
-  date: string;
-  total_laps: number;
-  top5: HeroDriver[];
-  fastest_lap_time: number | null;
-  fastest_lap_driver: string | null;
-  fastest_lap_number: number | null;
-  laps_led_count: number | null;
-  laps_led_driver: string | null;
-  safety_car_count: number;
-  circuit_points: CircuitPoint[];
-  circuit_rotation: number;
-  circuit_length_km?: number | null;
-  race_distance_km?: number | null;
+  session: string;
+  changes: WhatIfChange[];
 }
 
-export interface RaceInsight {
-  type: 'biggest_mover' | 'speed_king' | 'best_strategy';
-  title: string;
-  headline: string;
-  detail: string;
-  emoji: string;
-  driver_code?: string;
-  team_color: string;
-  headshot_url?: string;
+export interface WhatIfLap {
+  lap: number;
+  position: number;
+  gap: number;
+  time: number;
+  compound: string;
+  tyre_age: number;
+  is_simulated: boolean;
 }
 
-export interface SeasonRaceNode {
-  round_number: number;
-  gp_name: string;
-  country: string;
-  date: string;
-  is_completed: boolean;
-  is_next: boolean;
-  winner?: string;
-  total_laps?: number;
-  circuit_length_km?: number;
-  race_distance_km?: number;
-  lap_record_time?: string;
-  lap_record_driver?: string;
-  lap_record_year?: number;
+export interface DriverFinalResult {
+  driver: string;
+  position: number;
+  gap: number | null;
 }
 
-export interface HomepageData {
-  hero: HeroData | null;
-  insights: RaceInsight[];
-  drivers_standings: DriverStanding[];
-  constructors_standings: ConstructorStanding[];
-  standings_round: number;
-  season_nodes: SeasonRaceNode[];
-  season_year: number;
-  completed_races: number;
-  total_races: number;
-  next_race_name: string | null;
-  next_race_country: string | null;
-  next_race_date: string | null;
+export interface WhatIfSummary {
+  driver: string;
+  actual_position: number;
+  simulated_position: number;
+  position_change: number;
+  time_delta: number;
+}
+
+export interface WhatIfResponse {
+  summary: WhatIfSummary;
+  actual_laps: WhatIfLap[];
+  simulated_laps: WhatIfLap[];
+  all_drivers_actual_final: DriverFinalResult[];
+  all_drivers_simulated_final: DriverFinalResult[];
 }
 
 export interface AppState {
