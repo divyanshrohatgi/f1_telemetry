@@ -25,7 +25,8 @@ COPY backend/ ./
 # Frontend build → nginx html root
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
-# Configs
+# Configs — remove default site so our conf takes effect
+RUN rm -f /etc/nginx/sites-enabled/default
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
