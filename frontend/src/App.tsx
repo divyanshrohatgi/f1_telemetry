@@ -1,9 +1,8 @@
 /**
  * F1 Telemetry Dashboard — Root component.
  *
- * Three modes:
- *   home     → Homepage (F1.com-inspired dark cinematic design with live race data)
- *   latest   → LatestRaceDashboard (timing table, schedule, standings)
+ * Two modes:
+ *   latest   → LatestRaceDashboard (f1-dash style timing table, auto-loads latest GP)
  *   analysis → Historical session analysis (laps / telemetry / comparison / strategy / weather)
  */
 
@@ -25,10 +24,6 @@ import ReplayPage from './components/Replay/ReplayPage';
 import EmptyState from './components/common/EmptyState';
 import LatestRaceDashboard from './components/LatestRace/LatestRaceDashboard';
 import Homepage from './components/Homepage/Homepage';
-<<<<<<< Updated upstream
-import Footer from './components/Footer/Footer';
-=======
->>>>>>> Stashed changes
 
 import { useSessionData } from './hooks/useSessionData';
 import { useLiveStatus } from './hooks/useLiveStatus';
@@ -38,10 +33,7 @@ import LiveRaceDashboard from './components/LiveBanner/LiveRaceDashboard';
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>('home');
-<<<<<<< Updated upstream
-=======
   const { mode: liveMode, liveSession, nextSession } = useLiveStatus();
->>>>>>> Stashed changes
 
   const {
     season,
@@ -64,9 +56,7 @@ const App: React.FC = () => {
 
   // Dynamic page title
   useEffect(() => {
-    if (mode === 'home') {
-      document.title = 'GridInsight — F1 Telemetry Analysis, Strategy & AI Pit Predictions';
-    } else if (mode === 'latest') {
+    if (mode === 'latest') {
       document.title = 'GridInsight — Latest Race';
     } else if (sessionMeta) {
       document.title = `${sessionMeta.gp_name} ${sessionMeta.session_type} ${sessionMeta.year} — GridInsight`;
@@ -161,16 +151,14 @@ const App: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* Top bar — not shown in home mode; Homepage has its own full header */}
-      {mode !== 'home' && (
-        <TopBar
-          sessionMeta={sessionMeta}
-          isLoading={isLoadingSession}
-          loadingProgress={isLoadingSession ? 60 : 100}
-          mode={mode}
-          onModeChange={setMode}
-        />
-      )}
+      {/* Top bar — always shown, carries mode switcher */}
+      <TopBar
+        sessionMeta={sessionMeta}
+        isLoading={isLoadingSession}
+        loadingProgress={isLoadingSession ? 60 : 100}
+        mode={mode}
+        onModeChange={setMode}
+      />
 
       {/* Below top bar */}
       <div
@@ -178,22 +166,10 @@ const App: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          marginTop: mode === 'home' ? 0 : 'var(--topbar-height)',
-          overflow: mode === 'home' ? 'auto' : 'hidden',
+          marginTop: 'var(--topbar-height)',
+          overflow: 'hidden',
         }}
       >
-<<<<<<< Updated upstream
-        {mode === 'home' ? (
-          /* ── HOMEPAGE ────────────────────────────────────────────── */
-          <main style={{ flex: 1, overflow: 'auto', background: '#111' }}>
-            <Homepage onNavigate={setMode} />
-            <Footer />
-          </main>
-        ) : mode === 'latest' ? (
-          /* ── LATEST RACE ─────────────────────────────────────────── */
-          <main style={{ flex: 1, overflow: 'hidden', background: 'var(--color-bg)' }}>
-            <LatestRaceDashboard />
-=======
         <LiveBanner mode={liveMode} liveSession={liveSession} nextSession={nextSession} />
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {mode === 'latest' ? (
@@ -203,7 +179,6 @@ const App: React.FC = () => {
               ? <LiveRaceDashboard session={liveSession} />
               : <LatestRaceDashboard />
             }
->>>>>>> Stashed changes
           </main>
         ) : (
           /* ── HISTORICAL ANALYSIS ─────────────────────────────────── */
