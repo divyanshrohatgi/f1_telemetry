@@ -5,11 +5,7 @@ All times are in seconds (float) — timedelta objects from FastF1 are converted
 
 from __future__ import annotations
 
-<<<<<<< Updated upstream
-from typing import Any, Optional, List
-=======
 from typing import Any, List, Optional
->>>>>>> Stashed changes
 from pydantic import BaseModel, Field
 
 
@@ -373,19 +369,6 @@ class ErrorResponse(BaseModel):
     code: Optional[str] = None
 
 
-<<<<<<< Updated upstream
-class HeroDriver(BaseModel):
-    position: Optional[int]
-    driver_code: str
-    full_name: str
-    team_color: str
-    gap_to_leader: Optional[str]
-    headshot_url: Optional[str] = None
-
-class Point2D(BaseModel):
-    x: float
-    y: float
-=======
 # ---------------------------------------------------------------------------
 # Simulator schemas
 # ---------------------------------------------------------------------------
@@ -431,7 +414,10 @@ class HeroDriver(BaseModel):
     headshot_url: Optional[str] = None
     compound: Optional[str] = None
 
->>>>>>> Stashed changes
+
+class Point2D(BaseModel):
+    x: float
+    y: float
 
 class HeroRaceResult(BaseModel):
     year: int
@@ -440,20 +426,6 @@ class HeroRaceResult(BaseModel):
     circuit_name: str
     date: str
     round_number: int
-<<<<<<< Updated upstream
-    total_laps: int
-    top5: List[HeroDriver]
-    
-    fastest_lap_time: Optional[float]
-    fastest_lap_driver: Optional[str]
-    fastest_lap_number: Optional[int]
-    
-    laps_led_driver: Optional[str]
-    laps_led_count: Optional[int]
-    safety_car_count: int
-    
-    circuit_points: Optional[List[dict]] = None
-=======
     total_laps: int = 0
     top5: List[HeroDriver] = []
     fastest_lap_time: Optional[float] = None
@@ -463,22 +435,10 @@ class HeroRaceResult(BaseModel):
     laps_led_count: Optional[int] = None
     safety_car_count: int = 0
     circuit_points: Optional[List[CircuitPoint]] = None
->>>>>>> Stashed changes
     circuit_rotation: float = 0.0
     circuit_length_km: Optional[float] = None
     race_distance_km: Optional[float] = None
 
-<<<<<<< Updated upstream
-class RaceInsight(BaseModel):
-    type: str # 'biggest_mover', 'speed_king', 'best_strategy'
-    title: str
-    emoji: str
-    driver_code: Optional[str]
-    team_color: str
-    headline: str
-    detail: str
-    headshot_url: Optional[str] = None
-=======
 
 class RaceInsight(BaseModel):
     type: str
@@ -488,24 +448,17 @@ class RaceInsight(BaseModel):
     team_color: str = "#FFFFFF"
     headline: str
     detail: str
+    headshot_url: Optional[str] = None
 
->>>>>>> Stashed changes
 
 class SeasonNode(BaseModel):
     round_number: int
     gp_name: str
     country: str
     date: str
-<<<<<<< Updated upstream
-    is_completed: bool
-    is_next: bool
-    winner: Optional[str]
-    # Circuit info (from static data)
-=======
     is_completed: bool = False
     is_next: bool = False
     winner: Optional[str] = None
->>>>>>> Stashed changes
     total_laps: Optional[int] = None
     circuit_length_km: Optional[float] = None
     race_distance_km: Optional[float] = None
@@ -513,25 +466,6 @@ class SeasonNode(BaseModel):
     lap_record_driver: Optional[str] = None
     lap_record_year: Optional[int] = None
 
-<<<<<<< Updated upstream
-class HomepageData(BaseModel):
-    hero: Optional[HeroRaceResult]
-    
-    next_race_name: Optional[str]
-    next_race_date: Optional[str]
-    next_race_country: Optional[str]
-    
-    insights: List[RaceInsight]
-    
-    drivers_standings: List[DriverStanding]
-    constructors_standings: List[ConstructorStanding]
-    standings_round: int
-    
-    season_year: int
-    season_nodes: List[SeasonNode]
-    completed_races: int
-    total_races: int
-=======
 
 class HomepageData(BaseModel):
     hero: Optional[HeroRaceResult] = None
@@ -546,4 +480,3 @@ class HomepageData(BaseModel):
     season_nodes: List[SeasonNode] = []
     completed_races: int = 0
     total_races: int = 0
->>>>>>> Stashed changes

@@ -10,12 +10,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-<<<<<<< Updated upstream
-from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, homepage
-=======
 from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, simulate, homepage, live
 from api.routes import replay_ws
->>>>>>> Stashed changes
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -90,14 +86,10 @@ app.include_router(prediction.router, prefix="/api", tags=["ml-predictions"])
 app.include_router(pitsense.router,  prefix="/api", tags=["pitsense"])
 app.include_router(results.router,    prefix="/api", tags=["results"])
 app.include_router(standings.router,  prefix="/api", tags=["standings"])
-<<<<<<< Updated upstream
-app.include_router(homepage.router, prefix="/api/v1", tags=["homepage"])
-=======
+app.include_router(homepage.router,   prefix="/api/v1", tags=["homepage"])
 app.include_router(simulate.router,   prefix="/api", tags=["simulate"])
-app.include_router(homepage.router,   prefix="/api", tags=["homepage"])
-app.include_router(live.router,       prefix="/api", tags=["live"])
+app.include_router(live.router,       prefix="/api/v1", tags=["live"])
 app.include_router(replay_ws.router)
->>>>>>> Stashed changes
 
 
 @app.get("/health")
