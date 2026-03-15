@@ -10,7 +10,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings
+from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, simulate, homepage, live
+from api.routes import replay_ws
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -32,19 +33,27 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+import os
+import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # ---------------------------------------------------------------------------
-# CORS — allow React frontend (dev: localhost:5173, prod: same origin)
+# CORS — allow React frontend (read from .env)
 # ---------------------------------------------------------------------------
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+cors_origins_str = os.getenv("CORS_ORIGINS", '["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"]')
+try:
+    origins = json.loads(cors_origins_str)
+except json.JSONDecodeError:
+    logger.error("Failed to parse CORS_ORIGINS from environment. Falling back to default origins.")
+    origins = ["http://localhost:5173", "http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,6 +86,10 @@ app.include_router(prediction.router, prefix="/api", tags=["ml-predictions"])
 app.include_router(pitsense.router,  prefix="/api", tags=["pitsense"])
 app.include_router(results.router,    prefix="/api", tags=["results"])
 app.include_router(standings.router,  prefix="/api", tags=["standings"])
+app.include_router(homepage.router,   prefix="/api/v1", tags=["homepage"])
+app.include_router(simulate.router,   prefix="/api", tags=["simulate"])
+app.include_router(live.router,       prefix="/api", tags=["live"])
+app.include_router(replay_ws.router)
 
 
 @app.get("/health")

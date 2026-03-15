@@ -15,6 +15,8 @@ const TABS: Tab[] = [
   { id: 'strategy',    label: 'STRATEGY',    requiresSession: true },
   { id: 'weather',     label: 'WEATHER',     requiresSession: true },
   { id: 'degradation', label: 'PITSENSE™',   requiresSession: true },
+  { id: 'simulator',   label: 'SIMULATOR',   requiresSession: true, requiresDrivers: 1 },
+  { id: 'replay',      label: 'RACE REPLAY', requiresSession: true },
 ];
 
 interface TabNavProps {

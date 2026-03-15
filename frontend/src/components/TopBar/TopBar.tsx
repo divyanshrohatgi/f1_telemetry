@@ -21,6 +21,9 @@ const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const { theme, toggleTheme, isDark } = useTheme();
 
+  // Hide TopBar completely when in home mode (Homepage has its own header)
+  if (mode === 'home') return null;
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex items-center"
@@ -40,12 +43,14 @@ const TopBar: React.FC<TopBarProps> = ({
       )}
 
       {/* Brand — GridInsight */}
-      <div
-        className="flex items-center px-4 gap-2.5 shrink-0"
+      <button
+        onClick={() => onModeChange('home')}
+        className="flex items-center px-4 gap-2.5 shrink-0 bg-transparent border-none cursor-pointer"
         style={{
           width: mode === 'analysis' ? 'var(--sidebar-width)' : 'auto',
           borderRight: mode === 'analysis' ? `1px solid ${isDark ? '#1E1E1E' : '#E5E5E5'}` : 'none',
           minWidth: 145,
+          height: '100%',
         }}
       >
         <div style={{
@@ -62,19 +67,21 @@ const TopBar: React.FC<TopBarProps> = ({
             INSIGHT
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Mode switcher */}
       <div className="flex items-center gap-1 px-3 shrink-0">
+        <ModePill label="HOME" active={false} onClick={() => onModeChange('home')}
+          activeColor="#888" isDark={isDark} />
         <ModePill label="LATEST RACE" active={mode === 'latest'} onClick={() => onModeChange('latest')}
           activeColor="var(--color-f1-red)" isDark={isDark} />
         <ModePill label="ANALYSIS" active={mode === 'analysis'} onClick={() => onModeChange('analysis')}
           activeColor="#00FF87" isDark={isDark} />
       </div>
 
-      {/* Session info strip */}
+      {/* Session info strip — hidden on mobile */}
       {mode === 'analysis' && (
-        <div className="flex items-center gap-5 px-5 flex-1 overflow-hidden">
+        <div className="hidden md:flex items-center gap-5 px-5 flex-1 overflow-hidden">
           {sessionMeta ? (
             <>
               <FlagIcon country={sessionMeta.country} height={20} />

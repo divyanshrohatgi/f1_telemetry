@@ -1,0 +1,9 @@
+{
+  "name": "f1-telemetry",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "install:frontend": "cd frontend && npm install"
+  }
+}

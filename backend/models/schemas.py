@@ -5,7 +5,7 @@ All times are in seconds (float) — timedelta objects from FastF1 are converted
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -367,3 +367,116 @@ class StandingsResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     code: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Simulator schemas
+# ---------------------------------------------------------------------------
+
+class PitStopSimulation(BaseModel):
+    lap: int
+    compound: str
+
+class SimulationRequest(BaseModel):
+    driver_code: str
+    starting_compound: Optional[str] = None
+    pit_stops: list[PitStopSimulation]
+
+class SimulatedLap(BaseModel):
+    lap_number: int
+    lap_time: float
+    cumulative_time: float
+    compound: str
+    tyre_age: int
+    is_pit_in_lap: bool
+    is_pit_out_lap: bool
+    traffic_penalty: float = 0.0
+
+class SimulationResponse(BaseModel):
+    session_key: str
+    driver_code: str
+    original_total_time: float
+    simulated_total_time: float
+    time_delta: float
+    simulated_laps: list[SimulatedLap]
+
+
+# ---------------------------------------------------------------------------
+# Homepage schemas
+# ---------------------------------------------------------------------------
+
+class HeroDriver(BaseModel):
+    position: Optional[int] = None
+    driver_code: str
+    full_name: str
+    team_color: str
+    gap_to_leader: Optional[str] = None
+    headshot_url: Optional[str] = None
+    compound: Optional[str] = None
+
+
+class Point2D(BaseModel):
+    x: float
+    y: float
+
+class HeroRaceResult(BaseModel):
+    year: int
+    gp_name: str
+    country: str
+    circuit_name: str
+    date: str
+    round_number: int
+    total_laps: int = 0
+    top5: List[HeroDriver] = []
+    fastest_lap_time: Optional[float] = None
+    fastest_lap_driver: Optional[str] = None
+    fastest_lap_number: Optional[int] = None
+    laps_led_driver: Optional[str] = None
+    laps_led_count: Optional[int] = None
+    safety_car_count: int = 0
+    circuit_points: Optional[List[CircuitPoint]] = None
+    circuit_rotation: float = 0.0
+    circuit_length_km: Optional[float] = None
+    race_distance_km: Optional[float] = None
+
+
+class RaceInsight(BaseModel):
+    type: str
+    title: str
+    emoji: str = ""
+    driver_code: Optional[str] = None
+    team_color: str = "#FFFFFF"
+    headline: str
+    detail: str
+    headshot_url: Optional[str] = None
+
+
+class SeasonNode(BaseModel):
+    round_number: int
+    gp_name: str
+    country: str
+    date: str
+    is_completed: bool = False
+    is_next: bool = False
+    winner: Optional[str] = None
+    total_laps: Optional[int] = None
+    circuit_length_km: Optional[float] = None
+    race_distance_km: Optional[float] = None
+    lap_record_time: Optional[str] = None
+    lap_record_driver: Optional[str] = None
+    lap_record_year: Optional[int] = None
+
+
+class HomepageData(BaseModel):
+    hero: Optional[HeroRaceResult] = None
+    next_race_name: Optional[str] = None
+    next_race_date: Optional[str] = None
+    next_race_country: Optional[str] = None
+    insights: List[RaceInsight] = []
+    drivers_standings: List[DriverStanding] = []
+    constructors_standings: List[ConstructorStanding] = []
+    standings_round: int = 0
+    season_year: int = 0
+    season_nodes: List[SeasonNode] = []
+    completed_races: int = 0
+    total_races: int = 0

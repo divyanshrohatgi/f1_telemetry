@@ -18,6 +18,7 @@ import type {
   SessionResultsResponse,
   LatestRaceInfo,
   StandingsResponse,
+  HomepageData,
 } from '../types/f1.types';
 
 const BASE = '/api/v1';
@@ -124,6 +125,10 @@ export const api = {
   /** Driver and constructor championship standings. */
   getStandings: (year: number) =>
     get<StandingsResponse>(`/standings/${year}`),
+
+  /** Homepage data — hero race, standings, schedule. */
+  getHomepageData: () =>
+    get<HomepageData>('/homepage'),
 };
 
 export { ApiError };

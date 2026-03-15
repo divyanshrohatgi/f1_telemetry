@@ -340,12 +340,112 @@ export interface StandingsResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Simulation
+// ---------------------------------------------------------------------------
+
+export interface SimulatedLap {
+  lap_number: number;
+  lap_time: number;
+  cumulative_time: number;
+  compound: TyreCompound;
+  tyre_age: number;
+  is_pit_in_lap: boolean;
+  is_pit_out_lap: boolean;
+  traffic_penalty: number;
+}
+
+export interface SimulationResponse {
+  session_key: string;
+  driver_code: string;
+  original_total_time: number;
+  simulated_total_time: number;
+  time_delta: number;
+  simulated_laps: SimulatedLap[];
+}
+
+// ---------------------------------------------------------------------------
+// Homepage
+// ---------------------------------------------------------------------------
+
+export interface HeroDriver {
+  position: number | null;
+  driver_code: string;
+  full_name: string;
+  team_color: string;
+  gap_to_leader: string | null;
+  headshot_url: string | null;
+  compound: string | null;
+}
+
+export interface HeroRaceResult {
+  year: number;
+  gp_name: string;
+  country: string;
+  circuit_name: string;
+  date: string;
+  round_number: number;
+  total_laps: number;
+  top5: HeroDriver[];
+  fastest_lap_time: number | null;
+  fastest_lap_driver: string | null;
+  fastest_lap_number: number | null;
+  laps_led_driver: string | null;
+  laps_led_count: number | null;
+  safety_car_count: number;
+  circuit_points: CircuitPoint[] | null;
+  circuit_rotation: number;
+  circuit_length_km: number | null;
+  race_distance_km: number | null;
+}
+
+export interface RaceInsight {
+  type: string;
+  title: string;
+  emoji: string;
+  driver_code: string | null;
+  team_color: string;
+  headline: string;
+  detail: string;
+}
+
+export interface SeasonRaceNode {
+  round_number: number;
+  gp_name: string;
+  country: string;
+  date: string;
+  is_completed: boolean;
+  is_next: boolean;
+  winner: string | null;
+  total_laps: number | null;
+  circuit_length_km: number | null;
+  race_distance_km: number | null;
+  lap_record_time: string | null;
+  lap_record_driver: string | null;
+  lap_record_year: number | null;
+}
+
+export interface HomepageData {
+  hero: HeroRaceResult | null;
+  next_race_name: string | null;
+  next_race_date: string | null;
+  next_race_country: string | null;
+  insights: RaceInsight[];
+  drivers_standings: DriverStanding[];
+  constructors_standings: ConstructorStanding[];
+  standings_round: number;
+  season_year: number;
+  season_nodes: SeasonRaceNode[];
+  completed_races: number;
+  total_races: number;
+}
+
+// ---------------------------------------------------------------------------
 // UI State
 // ---------------------------------------------------------------------------
 
-export type AppMode = 'latest' | 'analysis';
+export type AppMode = 'home' | 'latest' | 'analysis';
 
-export type TabView = 'laps' | 'telemetry' | 'comparison' | 'strategy' | 'degradation' | 'weather';
+export type TabView = 'laps' | 'telemetry' | 'comparison' | 'strategy' | 'degradation' | 'weather' | 'simulator' | 'replay';
 
 export interface AppState {
   selectedYear: number;

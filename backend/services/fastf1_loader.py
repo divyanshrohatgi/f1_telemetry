@@ -82,7 +82,9 @@ def load_session(
     logger.info("Loading session %s (this may take a moment on first run)...", key)
 
     try:
-        session = fastf1.get_session(year, gp, session_type)
+        # FastF1 requires round numbers as integers, not strings like "23"
+        identifier = int(gp) if gp.isdigit() else gp
+        session = fastf1.get_session(year, identifier, session_type)
         session.load(
             laps=load_laps,
             telemetry=load_telemetry,
@@ -123,12 +125,21 @@ def get_drivers_for_session(session: fastf1.core.Session, year: int) -> dict:
         except Exception:
             team_color = get_team_color(team_name, year)
 
+        headshot_url = None
+        try:
+            raw_url = row.get("HeadshotUrl")
+            if raw_url and str(raw_url) not in ("nan", "None", ""):
+                headshot_url = str(raw_url)
+        except Exception:
+            pass
+
         drivers[driver_code] = {
             "code": driver_code,
             "full_name": full_name,
             "team_name": team_name,
             "team_color": team_color,
             "driver_number": driver_number,
+            "headshot_url": headshot_url,
         }
 
     return drivers
