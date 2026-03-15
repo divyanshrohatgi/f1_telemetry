@@ -450,43 +450,43 @@ export default function Homepage({
   const isLive = liveMode === 'live' && liveSession;
 
   return (
-    <div className="h-screen w-screen bg-[#0E0E0E] text-gray-300 font-sans flex flex-col overflow-hidden selection:bg-[#E10600] selection:text-white">
+    <div className="min-h-screen w-screen bg-[#0E0E0E] text-gray-300 font-sans flex flex-col overflow-x-hidden selection:bg-[#E10600] selection:text-white">
       
       {/* Top Bar */}
-      <header className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-[#222] bg-[#0E0E0E]/90 backdrop-blur-sm z-10">
+      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-8 border-b border-[#222] bg-[#0E0E0E]/90 backdrop-blur-sm z-10">
         <div className="flex items-center gap-1.5 text-lg font-black tracking-tight">
           <span className="text-white">GRID</span>
           <span className="text-[#E10600]">INSIGHT</span>
         </div>
-        
-        <div className="flex items-center gap-6">
+
+        <div className="flex items-center gap-3 md:gap-6">
           {isLive && (
             <span className="flex items-center gap-2 text-[#E10600] text-xs font-bold uppercase tracking-wider animate-pulse">
               <Radio size={14} /> Live
             </span>
           )}
           {liveMode === 'countdown' && nextSession && (
-            <span className="text-gray-400 text-xs font-mono">
+            <span className="hidden sm:inline text-gray-400 text-xs font-mono">
               {nextSession.name} in <span className="text-[#E10600] font-bold">{formatCountdown(nextSession.hours_until)}</span>
             </span>
           )}
-          <button 
-            onClick={onGoToLatest} 
-            className="text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+          <button
+            onClick={onGoToLatest}
+            className="text-xs font-semibold text-gray-400 hover:text-white transition-colors whitespace-nowrap"
           >
-            Latest Results &rarr;
+            Latest &rarr;
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-8 w-full max-w-6xl mx-auto">
+      <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 md:px-8 w-full max-w-6xl mx-auto">
         
         {/* Next Session + Previous Race Header */}
         <div className="w-full shrink-0 mb-8 mt-4">
 
           {/* Next session */}
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 
             {/* Left: GP name + circuit info */}
             <div>
@@ -509,14 +509,14 @@ export default function Homepage({
                     <Radio size={12} className="animate-pulse" /> Live
                   </div>
                 )}
-                <h1 className="text-4xl text-white leading-none uppercase tracking-wide" style={{ fontFamily: "'Racing Sans One', sans-serif" }}>
+                <h1 className="text-2xl sm:text-4xl text-white leading-none uppercase tracking-wide" style={{ fontFamily: "'Racing Sans One', sans-serif" }}>
                   {isLive ? liveSession!.gp : (nextSession?.gp ?? 'Off Season')}
                 </h1>
               </div>
 
               {/* Circuit details */}
               {(nextSession || isLive) && (
-                <div className="flex items-center gap-2 text-sm text-[#666] ml-11">
+                <div className="flex items-center gap-2 text-sm text-[#666] ml-0 sm:ml-11">
                   <span className="font-semibold text-[#888]">
                     {isLive ? liveSession!.circuit : nextSession!.circuit}
                   </span>
@@ -533,7 +533,7 @@ export default function Homepage({
             </div>
 
             {/* Right: session type + countdown */}
-            <div className="text-right shrink-0 ml-6">
+            <div className="text-left sm:text-right shrink-0 sm:ml-6">
               {isLive ? (
                 <p className="text-[10px] text-[#E10600] uppercase tracking-[0.2em] font-semibold">
                   {liveSession!.type}
@@ -570,7 +570,7 @@ export default function Homepage({
         </div>
 
         {/* 3 Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full flex-1 min-h-0 mb-8 max-h-[340px]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full mb-8 md:flex-1 md:min-h-0 md:max-h-[340px]">
           
           <Card onClick={() => hero ? onGoToAnalysis(hero.year, hero.round_number.toString(), 'R', 'replay') : onGoToLatest()}>
             <h2 className="text-sm font-bold text-gray-200 mb-0.5 uppercase tracking-wide">Race Replay</h2>
