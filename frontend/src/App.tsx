@@ -97,6 +97,11 @@ const App: React.FC = () => {
     setActiveTab('telemetry');
   }, []);
 
+  const handleGoToSimulator = useCallback((driver: string) => {
+    setSelectedDrivers([driver]);
+    setActiveTab('simulator');
+  }, []);
+
   const handleGoToAnalysis = useCallback(
     (year: number, gp: string, session: string, tab: TabView) => {
       setSelectedDrivers([]);
@@ -274,6 +279,7 @@ const App: React.FC = () => {
                     hoveredDriver={hoveredDriver}
                     selectedLap={selectedLap}
                     onLapSelect={handleLapSelect}
+                    onGoToSimulator={handleGoToSimulator}
                   />
                 )}
               </div>
@@ -295,10 +301,11 @@ interface ActiveViewProps {
   hoveredDriver: string | null;
   selectedLap: number | null;
   onLapSelect: (lap: number) => void;
+  onGoToSimulator: (driver: string) => void;
 }
 
 const ActiveView: React.FC<ActiveViewProps> = ({
-  tab, sessionMeta, selectedDrivers, hoveredDriver, selectedLap, onLapSelect,
+  tab, sessionMeta, selectedDrivers, hoveredDriver, selectedLap, onLapSelect, onGoToSimulator,
 }) => {
   switch (tab) {
     case 'laps':
@@ -339,7 +346,7 @@ const ActiveView: React.FC<ActiveViewProps> = ({
     case 'weather':
       return <WeatherPanel sessionMeta={sessionMeta} />;
     case 'degradation':
-      return <PitSense />;
+      return <PitSense sessionMeta={sessionMeta} onGoToSimulator={onGoToSimulator} />;
     case 'simulator':
       return (
         <SimulatorView

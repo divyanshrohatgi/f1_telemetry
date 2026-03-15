@@ -114,6 +114,10 @@ export const api = {
   pitSenseWindow: (request: PitWindowRequest) =>
     post<PitWindowResponse>('/pitsense/window', request),
 
+  /** PitSense™ — pit stop time losses for green / SC / VSC conditions. */
+  pitLoss: (circuitId: string) =>
+    get<{ circuit_id: string; green: number; sc: number; vsc: number }>(`/pitsense/pit-loss/${encodeURIComponent(circuitId)}`),
+
   /** Detect the most recently completed race. */
   getLatestRace: () =>
     get<LatestRaceInfo>('/latest-race'),
