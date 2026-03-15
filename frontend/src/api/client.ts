@@ -126,7 +126,11 @@ export const api = {
   getStandings: (year: number) =>
     get<StandingsResponse>(`/standings/${year}`),
 
+<<<<<<< Updated upstream
   /** Homepage aggregated data — hero, insights, standings, season timeline. */
+=======
+  /** Homepage data — hero race, standings, schedule. */
+>>>>>>> Stashed changes
   getHomepageData: () =>
     get<HomepageData>('/homepage'),
 };

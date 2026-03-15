@@ -475,7 +475,7 @@ const LatestRaceDashboard: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getSessionResults(info.year, info.gp_name, 'R');
+      const data = await api.getSessionResults(info.year, info.round_number.toString(), 'R');
       setResults(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load results');

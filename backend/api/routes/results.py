@@ -36,7 +36,7 @@ async def get_latest_race():
 
         try:
             dates = pd.to_datetime(schedule["EventDate"], errors="coerce").dt.date
-            past = schedule[dates <= today]
+            past = schedule[dates < today]
         except Exception:
             past = schedule  # fall back to all events
 

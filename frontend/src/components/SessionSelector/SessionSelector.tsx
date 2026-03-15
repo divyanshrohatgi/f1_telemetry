@@ -30,8 +30,8 @@ const SessionSelector: React.FC<SessionSelectorProps> = ({
     onYearChange(year);
   };
 
-  const handleGPChange = (gpName: string) => {
-    const gp = season?.grands_prix.find((g) => g.name === gpName) ?? null;
+  const handleGPChange = (gpRoundStr: string) => {
+    const gp = season?.grands_prix.find((g) => g.round_number.toString() === gpRoundStr) ?? null;
     setSelectedGP(gp);
     if (gp && gp.sessions.length > 0) {
       const defaultSession = gp.sessions.includes('R') ? 'R' : gp.sessions[gp.sessions.length - 1];
@@ -41,7 +41,7 @@ const SessionSelector: React.FC<SessionSelectorProps> = ({
 
   const handleLoad = () => {
     if (selectedGP) {
-      onSessionSelect(selectedYear, selectedGP.name, selectedSession);
+      onSessionSelect(selectedYear, selectedGP.round_number.toString(), selectedSession);
     }
   };
 
@@ -62,12 +62,12 @@ const SessionSelector: React.FC<SessionSelectorProps> = ({
       {/* Grand Prix */}
       <Select
         label="GRAND PRIX"
-        value={selectedGP?.name ?? ''}
+        value={selectedGP?.round_number?.toString() ?? ''}
         onChange={handleGPChange}
         disabled={isLoadingSchedule || !season}
         placeholder={isLoadingSchedule ? 'Loading...' : 'Select GP'}
         options={(season?.grands_prix ?? []).map((gp) => ({
-          value: gp.name,
+          value: gp.round_number.toString(),
           label: `R${gp.round_number} ${gp.name.replace(' Grand Prix', '').replace(' GP', '')}`,
         }))}
       />

@@ -43,12 +43,14 @@ const TopBar: React.FC<TopBarProps> = ({
       )}
 
       {/* Brand — GridInsight */}
-      <div
-        className="flex items-center px-4 gap-2.5 shrink-0"
+      <button
+        onClick={() => onModeChange('home')}
+        className="flex items-center px-4 gap-2.5 shrink-0 bg-transparent border-none cursor-pointer"
         style={{
           width: mode === 'analysis' ? 'var(--sidebar-width)' : 'auto',
           borderRight: mode === 'analysis' ? `1px solid ${isDark ? '#1E1E1E' : '#E5E5E5'}` : 'none',
           minWidth: 145,
+          height: '100%',
         }}
       >
         <div style={{
@@ -65,7 +67,7 @@ const TopBar: React.FC<TopBarProps> = ({
             INSIGHT
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Mode switcher */}
       <div className="flex items-center gap-1 px-3 shrink-0">

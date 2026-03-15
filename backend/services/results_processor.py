@@ -81,6 +81,7 @@ def get_session_results(
 
             # Tyre info (last lap of session)
             compound, tyre_age, pit_stops, laps_completed = None, 0, 0, 0
+            total_race_time = None
             try:
                 sorted_laps = driver_laps.sort_values("LapNumber")
                 last = sorted_laps.iloc[-1]
@@ -91,6 +92,11 @@ def get_session_results(
                 # Pit stops ≈ number of rows with non-null PitOutTime (first lap out of pits)
                 pit_stops = int(driver_laps["PitOutTime"].notna().sum())
                 laps_completed = int(driver_laps["LapNumber"].max())
+                
+                # Fallback for broken/missing gap to leader
+                total_td = driver_laps['LapTime'].sum()
+                if pd.notna(total_td):
+                    total_race_time = timedelta_to_seconds(total_td)
             except Exception:
                 pass
 
@@ -107,6 +113,7 @@ def get_session_results(
                 "tyre_age": tyre_age,
                 "pit_stops": pit_stops,
                 "laps_completed": laps_completed,
+                "total_race_time": total_race_time,
             })
 
         except Exception as exc:
@@ -135,7 +142,28 @@ def get_session_results(
     # -------------------------------------------------------------------------
     drivers: list[dict] = []
 
+    # Build a synthetic ranking based on our custom lap metrics
+    def sort_key(d_code):
+        bt = best_times.get(d_code, {})
+        laps = bt.get("laps_completed", 0)
+        time = bt.get("total_race_time") or 999999.0
+        return (-laps, time)
+    
+    ranked_codes = sorted(list(drivers_info.keys()), key=sort_key)
+    synthetic_ranks = {code: rank + 1 for rank, code in enumerate(ranked_codes)}
+    synthetic_winner_code = ranked_codes[0] if ranked_codes else None
+    synthetic_winner_time = best_times.get(synthetic_winner_code, {}).get("total_race_time") if synthetic_winner_code else None
+    synthetic_winner_laps = best_times.get(synthetic_winner_code, {}).get("laps_completed", 0) if synthetic_winner_code else 0
+
+    winner_fallback_time = None
     if session.results is not None and not session.results.empty:
+        try:
+            winner_row = session.results[session.results['Position'] == 1].iloc[0]
+            winner_code = winner_row.get("Abbreviation", "???")
+            winner_fallback_time = best_times.get(winner_code, {}).get("total_race_time")
+        except Exception:
+            pass
+
         for _, row in session.results.iterrows():
             driver_code = row.get("Abbreviation", "???")
             if driver_code not in drivers_info:
@@ -152,6 +180,9 @@ def get_session_results(
                     position = int(pos_raw)
             except (TypeError, ValueError):
                 pass
+            
+            if position is None:
+                position = synthetic_ranks.get(driver_code)
 
             # Grid position
             grid = None
@@ -164,7 +195,31 @@ def get_session_results(
 
             # Gap to leader
             status_raw = str(row.get("Status", "")).strip()
-            gap_str = _format_gap(row.get("Time"), position, status_raw)
+
+            # Synthesize Status if empty
+            if not status_raw:
+                laps_completed = bt.get("laps_completed", 0)
+                if laps_completed > 0:
+                    laps_down = synthetic_winner_laps - laps_completed
+                    if laps_down > 0:
+                        status_raw = f"+{laps_down} Lap" + ("s" if laps_down > 1 else "")
+                    else:
+                        status_raw = "Finished"
+            
+            winner_time_to_use = winner_fallback_time if winner_fallback_time else synthetic_winner_time
+            
+            time_val = None
+            if hasattr(row, 'Time') or "Time" in row:
+                time_val = row.get("Time")
+
+            gap_str = _format_gap(time_val, position, status_raw)
+            
+            if gap_str is None and position is not None and position > 1 and status_raw == "Finished":
+                this_time = bt.get("total_race_time")
+                if this_time and winner_time_to_use:
+                    gap_secs = this_time - winner_time_to_use
+                    if gap_secs > 0:
+                        gap_str = f"+{gap_secs:.3f}s"
 
             bl = bt.get("lap_time")
             s1 = bt.get("s1")
@@ -212,26 +267,47 @@ def get_session_results(
             bt = best_times.get(driver_code, {})
             bl = bt.get("lap_time")
             s1, s2, s3 = bt.get("s1"), bt.get("s2"), bt.get("s3")
+            position = synthetic_ranks.get(driver_code)
+            this_time = bt.get("total_race_time")
+            laps_completed = bt.get("laps_completed", 0)
+            
+            status_raw = ""
+            gap_str = None
+            
+            if laps_completed > 0:
+                laps_down = synthetic_winner_laps - laps_completed
+                if laps_down > 0:
+                    status_raw = f"+{laps_down} Lap" + ("s" if laps_down > 1 else "")
+                    gap_str = status_raw
+                else:
+                    status_raw = "Finished"
+                    if position == 1:
+                        gap_str = "LEADER"
+                    elif this_time and synthetic_winner_time:
+                        gap_secs = this_time - synthetic_winner_time
+                        if gap_secs > 0:
+                            gap_str = f"+{gap_secs:.3f}s"
+
             drivers.append({
-                "position": None,
+                "position": position,
                 "grid_position": None,
                 "driver_code": driver_code,
                 "full_name": info["full_name"],
                 "team_name": info["team_name"],
                 "team_color": info["team_color"],
                 "driver_number": info["driver_number"],
-                "gap_to_leader": None,
+                "gap_to_leader": gap_str,
                 "best_lap_time": bl,
                 "best_lap_number": bt.get("lap_number"),
                 "best_s1": s1,
                 "best_s2": s2,
                 "best_s3": s3,
                 "last_lap_time": bt.get("last_lap_time"),
-                "laps_completed": bt.get("laps_completed", 0),
+                "laps_completed": laps_completed,
                 "compound": bt.get("compound"),
                 "tyre_age": bt.get("tyre_age", 0),
                 "pit_stops": bt.get("pit_stops", 0),
-                "status": "",
+                "status": status_raw,
                 "points": 0.0,
                 "is_best_lap": is_best(bl, overall_best_lap),
                 "is_best_s1": is_best(s1, overall_best_s1),

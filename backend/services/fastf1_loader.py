@@ -82,7 +82,9 @@ def load_session(
     logger.info("Loading session %s (this may take a moment on first run)...", key)
 
     try:
-        session = fastf1.get_session(year, gp, session_type)
+        # FastF1 requires round numbers as integers, not strings like "23"
+        identifier = int(gp) if gp.isdigit() else gp
+        session = fastf1.get_session(year, identifier, session_type)
         session.load(
             laps=load_laps,
             telemetry=load_telemetry,

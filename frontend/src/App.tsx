@@ -20,16 +20,28 @@ import DriverComparison from './components/DriverComparison/DriverComparison';
 import StrategyViewer from './components/StrategyViewer/StrategyViewer';
 import WeatherPanel from './components/WeatherPanel/WeatherPanel';
 import PitSense from './components/DegradationPredictor/PitSense';
+import SimulatorView from './components/Simulator/SimulatorView';
+import ReplayPage from './components/Replay/ReplayPage';
 import EmptyState from './components/common/EmptyState';
 import LatestRaceDashboard from './components/LatestRace/LatestRaceDashboard';
 import Homepage from './components/Homepage/Homepage';
+<<<<<<< Updated upstream
 import Footer from './components/Footer/Footer';
+=======
+>>>>>>> Stashed changes
 
 import { useSessionData } from './hooks/useSessionData';
+import { useLiveStatus } from './hooks/useLiveStatus';
 import type { AppMode, TabView, SessionMetadata } from './types/f1.types';
+import LiveBanner from './components/LiveBanner/LiveBanner';
+import LiveRaceDashboard from './components/LiveBanner/LiveRaceDashboard';
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>('home');
+<<<<<<< Updated upstream
+=======
+  const { mode: liveMode, liveSession, nextSession } = useLiveStatus();
+>>>>>>> Stashed changes
 
   const {
     season,
@@ -46,7 +58,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabView>('laps');
   const [selectedLap, setSelectedLap] = useState<number | null>(null);
 
-  // Dynamic page title for SEO / tab clarity
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+  }, []);
+
+  // Dynamic page title
   useEffect(() => {
     if (mode === 'home') {
       document.title = 'GridInsight — F1 Telemetry Analysis, Strategy & AI Pit Predictions';
@@ -90,6 +106,51 @@ const App: React.FC = () => {
     setActiveTab('telemetry');
   }, []);
 
+  const handleGoToAnalysis = useCallback(
+    (year: number, gp: string, session: string, tab: TabView) => {
+      setSelectedDrivers([]);
+      setSelectedLap(null);
+      setActiveTab(tab);
+      loadSession(year, gp, session);
+      setMode('analysis');
+    },
+    [loadSession]
+  );
+
+  // Homepage — minimal launchpad
+  if (mode === 'home') {
+    return (
+      <Homepage
+        liveMode={liveMode}
+        liveSession={liveSession}
+        nextSession={nextSession}
+        onGoToLatest={() => setMode('latest')}
+        onGoToAnalysis={handleGoToAnalysis}
+        loadSeason={loadSeason}
+        season={season}
+        isLoadingSchedule={isLoadingSchedule}
+        isLoadingSession={isLoadingSession}
+      />
+    );
+  }
+
+  // Replay gets its own fullscreen layout — no sidebar, no tab bar
+  if (mode === 'analysis' && activeTab === 'replay' && sessionMeta) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#0A0A0A',
+          overflow: 'hidden',
+        }}
+      >
+        <ReplayPage sessionMeta={sessionMeta} onBack={() => setActiveTab('laps')} />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -115,11 +176,13 @@ const App: React.FC = () => {
       <div
         style={{
           display: 'flex',
+          flexDirection: 'column',
           flex: 1,
           marginTop: mode === 'home' ? 0 : 'var(--topbar-height)',
           overflow: mode === 'home' ? 'auto' : 'hidden',
         }}
       >
+<<<<<<< Updated upstream
         {mode === 'home' ? (
           /* ── HOMEPAGE ────────────────────────────────────────────── */
           <main style={{ flex: 1, overflow: 'auto', background: '#111' }}>
@@ -130,6 +193,17 @@ const App: React.FC = () => {
           /* ── LATEST RACE ─────────────────────────────────────────── */
           <main style={{ flex: 1, overflow: 'hidden', background: 'var(--color-bg)' }}>
             <LatestRaceDashboard />
+=======
+        <LiveBanner mode={liveMode} liveSession={liveSession} nextSession={nextSession} />
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {mode === 'latest' ? (
+          /* ── LATEST RACE or LIVE ─────────────────────────────────── */
+          <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
+            {liveMode === 'live' && liveSession
+              ? <LiveRaceDashboard session={liveSession} />
+              : <LatestRaceDashboard />
+            }
+>>>>>>> Stashed changes
           </main>
         ) : (
           /* ── HISTORICAL ANALYSIS ─────────────────────────────────── */
@@ -214,6 +288,7 @@ const App: React.FC = () => {
             </main>
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -273,6 +348,15 @@ const ActiveView: React.FC<ActiveViewProps> = ({
       return <WeatherPanel sessionMeta={sessionMeta} />;
     case 'degradation':
       return <PitSense />;
+    case 'simulator':
+      return (
+        <SimulatorView
+          sessionMeta={sessionMeta}
+          driver={selectedDrivers[0]}
+        />
+      );
+    case 'replay':
+      return <ReplayPage sessionMeta={sessionMeta} />;
     default:
       return null;
   }
