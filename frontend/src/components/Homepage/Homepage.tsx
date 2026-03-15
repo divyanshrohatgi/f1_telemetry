@@ -369,6 +369,7 @@ import type { SeasonResponse, GrandPrixInfo, HomepageData, TabView } from '../..
 import { api } from '../../api/client';
 //import { formatLapTime } from '../../utils/formatting';
 import MiniTrackAnimation from './MiniTrackAnimation';
+import CountdownTimer from './CountdownTimer';
 
 // F1 Tire colors are universal, so keeping these accurate (Soft/Med/Hard)
 const STRATEGY_ROWS: { name: string; stints: [string, string][] }[] = [
@@ -376,6 +377,16 @@ const STRATEGY_ROWS: { name: string; stints: [string, string][] }[] = [
   { name: 'P2', stints: [['bg-[#E10600]', 'w-[40%]'], ['bg-[#FFC906]', 'w-[35%]'], ['bg-[#FFFFFF]', 'w-[25%]']] },
   { name: 'P3', stints: [['bg-[#FFC906]', 'w-[52%]'], ['bg-[#FFFFFF]', 'w-[48%]']] },
 ];
+
+const COUNTRY_CODES: Record<string, string> = {
+  'Australia': 'au', 'China': 'cn', 'Japan': 'jp', 'Bahrain': 'bh',
+  'Saudi Arabia': 'sa', 'United States': 'us', 'Italy': 'it',
+  'Monaco': 'mc', 'Spain': 'es', 'Canada': 'ca', 'Austria': 'at',
+  'United Kingdom': 'gb', 'Hungary': 'hu', 'Belgium': 'be',
+  'Netherlands': 'nl', 'Singapore': 'sg', 'Mexico': 'mx',
+  'Brazil': 'br', 'Qatar': 'qa', 'Abu Dhabi': 'ae', 'Azerbaijan': 'az',
+  'United Arab Emirates': 'ae', 'Great Britain': 'gb',
+};
 
 const SESSION_TYPES = ['R', 'Q', 'SQ', 'S', 'FP3', 'FP2', 'FP1'];
 const YEARS = Array.from({ length: 9 }, (_, i) => 2026 - i);
@@ -438,9 +449,6 @@ export default function Homepage({
   const hero = homeData?.hero;
   const isLive = liveMode === 'live' && liveSession;
 
-  const raceYear = isLive ? (new Date().getFullYear()) : (hero?.year ?? '');
-  const raceName = isLive ? liveSession.gp : (hero?.gp_name ?? '—');
-
   return (
     <div className="h-screen w-screen bg-[#0E0E0E] text-gray-300 font-sans flex flex-col overflow-hidden selection:bg-[#E10600] selection:text-white">
       
@@ -474,38 +482,99 @@ export default function Homepage({
       {/* Main Content Area */}
       <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-8 w-full max-w-6xl mx-auto">
         
-        {/* Contextual Title Block */}
-        <div className="flex flex-col items-center text-center shrink-0 mb-8 mt-4">
-          
-          {/* NEW: The Context Badge */}
-          <div className="flex items-center justify-center mb-4">
-            {isLive ? (
-              <div className="flex items-center gap-2 px-2.5 py-1 bg-[#E10600]/10 border border-[#E10600]/20 rounded-sm text-[#E10600] text-[10px] font-mono font-bold uppercase tracking-widest">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#E10600] animate-pulse" />
-                Live Session
+        {/* Next Session + Previous Race Header */}
+        <div className="w-full shrink-0 mb-8 mt-4">
+
+          {/* Next session */}
+          <div className="flex items-start justify-between">
+
+            {/* Left: GP name + circuit info */}
+            <div>
+              <p className="text-[10px] text-[#555] uppercase tracking-[0.2em] font-semibold mb-2">
+                {isLive ? 'Happening Now' : 'Up Next'}
+              </p>
+
+              <div className="flex items-center gap-3 mb-1.5">
+                {/* Flag */}
+                {(isLive ? null : nextSession?.country_code) && (
+                  <img
+                    src={`https://flagcdn.com/w40/${nextSession!.country_code}.png`}
+                    alt={nextSession!.country}
+                    className="w-8 h-5 object-cover rounded-sm border border-[#2A2A2A] shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
+                {isLive && (
+                  <div className="flex items-center gap-2 text-[#E10600] text-xs font-bold uppercase tracking-wider">
+                    <Radio size={12} className="animate-pulse" /> Live
+                  </div>
+                )}
+                <h1 className="text-4xl text-white leading-none uppercase tracking-wide" style={{ fontFamily: "'Racing Sans One', sans-serif" }}>
+                  {isLive ? liveSession!.gp : (nextSession?.gp ?? 'Off Season')}
+                </h1>
               </div>
-            ) : (
-              <div className="px-2.5 py-1 bg-[#151515] border border-white/5 rounded-sm text-gray-500 text-[10px] font-mono font-semibold uppercase tracking-widest">
-                Previous Session
-              </div>
-            )}
+
+              {/* Circuit details */}
+              {(nextSession || isLive) && (
+                <div className="flex items-center gap-2 text-sm text-[#666] ml-11">
+                  <span className="font-semibold text-[#888]">
+                    {isLive ? liveSession!.circuit : nextSession!.circuit}
+                  </span>
+                  <span className="text-[#333]">·</span>
+                  <span>{isLive ? '' : `${nextSession!.country}`}</span>
+                  {!isLive && nextSession?.total_laps && (
+                    <>
+                      <span className="text-[#333]">·</span>
+                      <span>{nextSession.total_laps} laps</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right: session type + countdown */}
+            <div className="text-right shrink-0 ml-6">
+              {isLive ? (
+                <p className="text-[10px] text-[#E10600] uppercase tracking-[0.2em] font-semibold">
+                  {liveSession!.type}
+                </p>
+              ) : nextSession ? (
+                <>
+                  <p className="text-[10px] text-[#555] uppercase tracking-[0.2em] font-semibold mb-2">
+                    {nextSession.session_name}
+                  </p>
+                  <CountdownTimer targetDate={nextSession.start_time} />
+                </>
+              ) : null}
+            </div>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            {raceYear} {raceName}
-          </h1>
-          
-          {/* NEW: Clearer instructions */}
-          <p className="text-sm text-gray-400 font-medium max-w-2xl">
-            Jump straight into the data for the {isLive ? 'current session' : 'most recent Grand Prix'}, or use the archive below to explore historical telemetry and race replays.
-          </p>
+          {/* Previous race divider */}
+          {hero && (
+            <div className="flex items-center gap-2 mt-5 pt-4 border-t border-[#1E1E1E]">
+              <span className="text-[10px] text-[#555] uppercase tracking-[0.15em]">Previous</span>
+              {COUNTRY_CODES[hero.country] && (
+                <img
+                  src={`https://flagcdn.com/w20/${COUNTRY_CODES[hero.country]}.png`}
+                  alt=""
+                  className="w-4 h-3 object-cover rounded-[2px] border border-[#2A2A2A]"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+              <span className="text-xs text-white font-semibold">{hero.gp_name}</span>
+              {hero.top5[0] && (
+                <span className="text-[10px] text-[#555]">· {hero.top5[0].driver_code} P1</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 3 Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full flex-1 min-h-0 mb-8 max-h-[340px]">
           
           <Card onClick={() => hero ? onGoToAnalysis(hero.year, hero.round_number.toString(), 'R', 'replay') : onGoToLatest()}>
-            <h2 className="text-sm font-bold text-gray-200 mb-2 uppercase tracking-wide">Race Replay</h2>
+            <h2 className="text-sm font-bold text-gray-200 mb-0.5 uppercase tracking-wide">Race Replay</h2>
+            <p className="text-[10px] text-[#E10600] font-mono mb-3">{hero?.gp_name ?? '—'}</p>
             <p className="text-xs text-gray-500 mb-6 line-clamp-2">Watch the interactive track map with a full timing tower and dynamic intervals.</p>
             <div className="flex-1 w-full bg-[#111] rounded-lg border border-[#222] flex items-center justify-center overflow-hidden">
                <div className="h-24 w-full opacity-80 group-hover:opacity-100 transition-opacity">
@@ -519,7 +588,8 @@ export default function Homepage({
           </Card>
 
           <Card onClick={onGoToLatest}>
-            <h2 className="text-sm font-bold text-gray-200 mb-2 uppercase tracking-wide">Telemetry & Strategy</h2>
+            <h2 className="text-sm font-bold text-gray-200 mb-0.5 uppercase tracking-wide">Telemetry & Strategy</h2>
+            <p className="text-[10px] text-[#E10600] font-mono mb-3">{hero?.gp_name ?? '—'}</p>
             <p className="text-xs text-gray-500 mb-6 line-clamp-2">Analyze stint lengths, tire deg, and head-to-head lap time comparisons.</p>
             <div className="flex-1 w-full flex flex-col justify-center gap-3 bg-[#111] rounded-lg border border-[#222] p-4">
               {STRATEGY_ROWS.map(d => (
@@ -536,7 +606,8 @@ export default function Homepage({
           </Card>
 
           <Card onClick={() => hero ? onGoToAnalysis(hero.year, hero.round_number.toString(), 'R', 'simulator') : onGoToLatest()}>
-            <h2 className="text-sm font-bold text-gray-200 mb-2 uppercase tracking-wide">What If Simulator</h2>
+            <h2 className="text-sm font-bold text-gray-200 mb-0.5 uppercase tracking-wide">What If Simulator</h2>
+            <p className="text-[10px] text-[#E10600] font-mono mb-3">{hero?.gp_name ?? '—'}</p>
             <p className="text-xs text-gray-500 mb-6 line-clamp-2">Adjust a team's pit window and see how it ripples through the final standings.</p>
             <div className="flex-1 w-full flex items-center justify-center gap-6 bg-[#111] rounded-lg border border-[#222]">
               <div className="text-center">

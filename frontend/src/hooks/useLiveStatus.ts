@@ -9,10 +9,16 @@ export interface LiveSession {
 
 export interface NextSession {
   name: string;
+  gp: string;
   circuit: string;
   country: string;
+  country_code: string;
   date: string;
+  session_name: string;
+  start_time: string;
   hours_until: number;
+  round: number;
+  total_laps: number | null;
 }
 
 export type PageMode = 'live' | 'countdown' | 'analysis';
@@ -44,6 +50,7 @@ export function useLiveStatus(): {
             setNextSession(data.next);
           } else {
             setMode('analysis');
+            setNextSession(data.next);
           }
           setLoading(false);
         })

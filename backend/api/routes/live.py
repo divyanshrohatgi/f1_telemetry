@@ -16,6 +16,16 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 OPENF1 = "https://api.openf1.org/v1"
+
+COUNTRY_CODES: Dict[str, str] = {
+    "Australia": "au", "China": "cn", "Japan": "jp", "Bahrain": "bh",
+    "Saudi Arabia": "sa", "United States": "us", "Italy": "it",
+    "Monaco": "mc", "Spain": "es", "Canada": "ca", "Austria": "at",
+    "United Kingdom": "gb", "Hungary": "hu", "Belgium": "be",
+    "Netherlands": "nl", "Singapore": "sg", "Mexico": "mx",
+    "Brazil": "br", "Qatar": "qa", "Abu Dhabi": "ae", "Azerbaijan": "az",
+    "United Arab Emirates": "ae", "USA": "us", "Great Britain": "gb",
+}
 TIMEOUT = 6.0
 
 _API_KEY = os.getenv("OPENF1_API_KEY", "")
@@ -54,31 +64,59 @@ def _parse_gap(raw) -> Optional[float]:
 # ---------------------------------------------------------------------------
 
 def _next_session_from_schedule() -> Optional[Dict]:
-    """Return next upcoming session from FastF1 schedule, or None."""
+    """Return next upcoming individual session (FP1/Q/Race etc.) from FastF1 schedule."""
     try:
         import pandas as pd
         import fastf1
         now = datetime.now(timezone.utc)
+
+        SESSION_COLS = [
+            ("Session1DateUtc", "Session1"),
+            ("Session2DateUtc", "Session2"),
+            ("Session3DateUtc", "Session3"),
+            ("Session4DateUtc", "Session4"),
+            ("Session5DateUtc", "Session5"),
+        ]
+
         for year in [now.year, now.year + 1]:
             try:
                 schedule = fastf1.get_event_schedule(year, include_testing=False)
             except Exception:
                 continue
             for _, row in schedule.iterrows():
-                ev_date = pd.to_datetime(row.get("EventDate"), errors="coerce")
-                if pd.isna(ev_date):
-                    continue
-                if ev_date.tzinfo is None:
-                    ev_date = ev_date.tz_localize("UTC")
-                if ev_date > now:
-                    hours = (ev_date - now).total_seconds() / 3600
-                    return {
-                        "name": str(row.get("EventName", "")),
-                        "circuit": str(row.get("Location", "")),
-                        "country": str(row.get("Country", "")),
-                        "date": str(row.get("EventDate", ""))[:10],
-                        "hours_until": round(hours, 1),
-                    }
+                for date_col, name_col in SESSION_COLS:
+                    raw_dt = row.get(date_col)
+                    if raw_dt is None:
+                        continue
+                    try:
+                        dt = pd.to_datetime(raw_dt, utc=True)
+                        if pd.isna(dt):
+                            continue
+                    except Exception:
+                        continue
+                    if dt > now:
+                        hours = (dt - now).total_seconds() / 3600
+                        gp_name = str(row.get("EventName", ""))
+                        country = str(row.get("Country", ""))
+                        try:
+                            from config.circuit_data import get_circuit_data
+                            cd = get_circuit_data(gp_name)
+                            total_laps = cd["total_laps"] if cd else None
+                        except Exception:
+                            total_laps = None
+                        return {
+                            "gp": gp_name,
+                            "name": gp_name,
+                            "circuit": str(row.get("Location", "")),
+                            "country": country,
+                            "country_code": COUNTRY_CODES.get(country, ""),
+                            "date": str(row.get("EventDate", ""))[:10],
+                            "session_name": str(row.get(name_col, "")),
+                            "start_time": dt.isoformat(),
+                            "hours_until": round(hours, 1),
+                            "round": int(row.get("RoundNumber", 0)),
+                            "total_laps": total_laps,
+                        }
     except Exception as exc:
         logger.debug("next_session lookup failed: %s", exc)
     return None
