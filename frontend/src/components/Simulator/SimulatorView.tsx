@@ -6,6 +6,11 @@ import type { SessionMetadata, TyreCompound, SimulationResponse } from '../../ty
 import LiveTrackMap from './LiveTrackMap';
 import type { TrackPoint, DriverMarker } from '../../utils/trackRenderer';
 
+const COMPOUND_COLORS: Record<string, string> = {
+  SOFT: '#FF3333', MEDIUM: '#FFC906', HARD: '#CCCCCC',
+  INTERMEDIATE: '#39B54A', WET: '#0072C6', UNKNOWN: '#666666',
+};
+
 interface SimulatorViewProps {
   sessionMeta: SessionMetadata;
   driver: string;
@@ -19,6 +24,7 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
   const [isSimulating, setIsSimulating] = useState(false);
   const [result, setResult] = useState<SimulationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actualStints, setActualStints] = useState<any[] | null>(null);
 
   // Ghost Car Replay State
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
@@ -61,6 +67,35 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
     };
     fetchTrack();
   }, [sessionMeta.session_key, driver]);
+
+  // Fetch actual race strategy and pre-fill pit stops
+  useEffect(() => {
+    if (!driver || !sessionMeta) return;
+    const parts = sessionMeta.session_key.split('_');
+    const year = parts[0];
+    const gp = parts.slice(1, -1).join('_');
+    const sessionType = parts[parts.length - 1];
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    fetch(`${backendUrl}/api/v1/strategy/${year}/${gp}/${sessionType}`)
+      .then(r => r.json())
+      .then(data => {
+        const drvStrategy = data.drivers?.find((d: any) => d.driver_code === driver);
+        if (drvStrategy?.stints && drvStrategy.stints.length > 0) {
+          const stints = drvStrategy.stints;
+          setActualStints(stints);
+          setStartingCompound((stints[0].compound || 'SOFT').toUpperCase() as TyreCompound);
+          if (stints.length >= 2) {
+            const stops = stints.slice(0, -1).map((s: any, i: number) => ({
+              lap: s.end_lap || 20,
+              compound: (stints[i + 1].compound || 'MEDIUM').toUpperCase() as TyreCompound,
+            }));
+            setPitStops(stops);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [driver, sessionMeta?.session_key]);
 
   const handleSimulate = async () => {
     setIsSimulating(true);
@@ -241,6 +276,41 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
         <div className="p-5 rounded flex flex-col" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
           <h3 className="text-lg font-bold uppercase mb-4 text-f1-red">Configure Strategy</h3>
           
+          {/* Actual strategy from real race */}
+          {actualStints && actualStints.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div className="text-2xs uppercase text-f1-gray-500 font-semibold tracking-wider" style={{ marginBottom: 8 }}>
+                Actual Strategy — {driver}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 32, background: 'var(--color-bg)', borderRadius: 8, padding: '4px 6px' }}>
+                {actualStints.map((stint: any, i: number) => {
+                  const compound = (stint.compound || 'UNKNOWN').toUpperCase();
+                  const laps = stint.tyre_life || stint.laps || 10;
+                  const totalLaps = sessionMeta.total_laps || 56;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        width: `${Math.max(15, (laps / totalLaps) * 100)}%`,
+                        height: '100%', borderRadius: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 9, fontWeight: 700, fontFamily: 'JetBrains Mono',
+                        backgroundColor: COMPOUND_COLORS[compound] || '#666',
+                        color: compound === 'HARD' ? '#333' : '#000',
+                        opacity: 0.85,
+                      }}
+                    >
+                      {compound[0]} · L{stint.start_lap}–{stint.end_lap}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-2xs text-f1-gray-600 mt-1" style={{ fontStyle: 'italic' }}>
+                Modify the pit stops below to test an alternate strategy
+              </div>
+            </div>
+          )}
+
           <div className="mb-6">
             <label className="block text-sm font-semibold uppercase mb-2 text-f1-gray-400">Starting Tyre</label>
             <select 
@@ -328,15 +398,44 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
                 </div>
               </div>
               
-              <div className="bg-f1-black p-6 rounded border border-f1-gray-800 flex flex-col items-center justify-center mb-6">
-                <div className="text-sm uppercase text-f1-gray-500 mb-2">Net Time Difference</div>
-                <div className={`text-4xl font-bold font-mono ${result.time_delta < 0 ? 'text-green-500' : 'text-f1-red'}`}>
-                  {result.time_delta > 0 ? '+' : ''}{result.time_delta.toFixed(3)}s
+              {result.actual_final_position != null && result.simulated_final_position != null ? (
+                <div className="bg-f1-black p-6 rounded border border-f1-gray-800 flex items-center justify-center gap-8 mb-6">
+                  <div className="text-center">
+                    <div className="text-2xs uppercase text-f1-gray-500 mb-1 tracking-wider">Actual</div>
+                    <div className="text-4xl font-black text-white font-mono">P{result.actual_final_position}</div>
+                  </div>
+                  <div className="text-f1-gray-600 text-2xl">→</div>
+                  <div className="text-center">
+                    <div className="text-2xs uppercase text-f1-gray-500 mb-1 tracking-wider">Simulated</div>
+                    <div className={`text-4xl font-black font-mono ${
+                      (result.position_change ?? 0) > 0 ? 'text-green-500' :
+                      (result.position_change ?? 0) < 0 ? 'text-f1-red' : 'text-white'
+                    }`}>P{result.simulated_final_position}</div>
+                  </div>
+                  <div className="text-right ml-4">
+                    <div className={`text-lg font-bold font-mono ${result.time_delta < 0 ? 'text-green-500' : 'text-f1-red'}`}>
+                      {result.time_delta > 0 ? '+' : ''}{result.time_delta.toFixed(1)}s
+                    </div>
+                    <div className="text-2xs text-f1-gray-500 uppercase tracking-wide">
+                      {(result.position_change ?? 0) > 0
+                        ? `Gained ${result.position_change} position${(result.position_change ?? 0) > 1 ? 's' : ''}`
+                        : (result.position_change ?? 0) < 0
+                        ? `Lost ${Math.abs(result.position_change!)} position${Math.abs(result.position_change!) > 1 ? 's' : ''}`
+                        : 'Same position'}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-f1-gray-400 mt-2 uppercase tracking-wide">
-                  {result.time_delta < 0 ? 'Faster than reality' : 'Slower than reality'}
+              ) : (
+                <div className="bg-f1-black p-6 rounded border border-f1-gray-800 flex flex-col items-center justify-center mb-6">
+                  <div className="text-sm uppercase text-f1-gray-500 mb-2">Net Time Difference</div>
+                  <div className={`text-4xl font-bold font-mono ${result.time_delta < 0 ? 'text-green-500' : 'text-f1-red'}`}>
+                    {result.time_delta > 0 ? '+' : ''}{result.time_delta.toFixed(3)}s
+                  </div>
+                  <div className="text-xs text-f1-gray-400 mt-2 uppercase tracking-wide">
+                    {result.time_delta < 0 ? 'Faster than reality' : 'Slower than reality'}
+                  </div>
                 </div>
-              </div>
+              )}
               
               <div className="flex-1 bg-f1-black p-4 rounded border border-f1-gray-800 mb-6 min-h-[250px] flex flex-col">
                 <div className="text-sm uppercase text-f1-gray-500 mb-4">Simulated Pace Profile</div>
@@ -369,6 +468,80 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
                 </div>
               </div>
               
+              {/* Position by lap chart */}
+              {result.simulated_laps.some(l => l.position != null) && (
+                <div className="flex-1 bg-f1-black p-4 rounded border border-f1-gray-800 mb-6 min-h-[220px] flex flex-col">
+                  <div className="text-sm uppercase text-f1-gray-500 mb-4">Position by Lap — Actual vs Simulated</div>
+                  <div className="flex-1 w-full min-h-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={result.simulated_laps
+                          .filter(l => l.position != null)
+                          .map(l => ({ lap: l.lap_number, actual: l.actual_position, simulated: l.position }))}
+                        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                        <XAxis dataKey="lap" stroke="#555" tick={{ fill: '#555', fontSize: 10 }} />
+                        <YAxis reversed domain={[1, 'dataMax']} stroke="#555" tick={{ fill: '#555', fontSize: 10 }} width={30} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#151515', border: '1px solid #333', borderRadius: 4 }}
+                          itemStyle={{ fontSize: 11 }}
+                          labelFormatter={l => `Lap ${l}`}
+                        />
+                        <Line type="stepAfter" dataKey="actual" stroke="#FFFFFF" strokeWidth={1.5} strokeOpacity={0.35} dot={false} name="Actual" />
+                        <Line type="stepAfter" dataKey="simulated" stroke="var(--color-f1-red)" strokeWidth={2} dot={false} name="Simulated" />
+                        {pitStops.map((stop, i) => (
+                          <ReferenceLine key={i} x={stop.lap} stroke="#eab308" strokeDasharray="3 3"
+                            label={{ value: 'PIT', fill: '#eab308', fontSize: 9, position: 'insideTopLeft' }} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex gap-4 mt-2">
+                    <span className="flex items-center gap-1.5 text-2xs text-f1-gray-500">
+                      <span style={{ width: 12, height: 2, background: '#FFF', opacity: 0.35, display: 'inline-block', borderRadius: 1 }} />
+                      Actual
+                    </span>
+                    <span className="flex items-center gap-1.5 text-2xs text-f1-gray-500">
+                      <span style={{ width: 12, height: 2, background: 'var(--color-f1-red)', display: 'inline-block', borderRadius: 1 }} />
+                      Simulated
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Final standings grid */}
+              {result.final_standings && result.final_standings.length > 0 && (
+                <div className="bg-f1-black p-4 rounded border border-f1-gray-800 mb-6">
+                  <div className="text-sm uppercase text-f1-gray-500 mb-3">Simulated Final Classification — Top 10</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: 4 }}>
+                    {result.final_standings.slice(0, 10).map(s => {
+                      const diff = (s.actual_position || 0) - s.simulated_position;
+                      const isTarget = s.driver_code === driver;
+                      return (
+                        <div
+                          key={s.driver_code}
+                          style={{
+                            padding: '6px 8px', borderRadius: 4, fontSize: 10,
+                            background: isTarget ? 'rgba(225,6,0,0.1)' : '#111',
+                            border: `1px solid ${isTarget ? 'rgba(225,6,0,0.3)' : '#222'}`,
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <span className="font-mono font-bold text-f1-gray-400" style={{ width: 20 }}>P{s.simulated_position}</span>
+                          <span className={`font-bold ${isTarget ? 'text-f1-red' : 'text-white'}`} style={{ fontSize: 11 }}>{s.driver_code}</span>
+                          {diff !== 0 && (
+                            <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: diff > 0 ? '#22C55E' : '#EF4444' }}>
+                              {diff > 0 ? `▲${diff}` : `▼${Math.abs(diff)}`}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="text-xs text-f1-gray-500 italic mt-auto">
                 * Note: Simulation accounts for generic fuel burn, estimated tyre degradation for this compound, average traffic patterns, and standard pit stop time loss.
               </div>

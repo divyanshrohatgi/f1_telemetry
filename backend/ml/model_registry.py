@@ -88,8 +88,9 @@ def predict_degradation_curve(
         return _linear_fallback(compound_upper, max_laps)
 
     model: Pipeline = payload["model"]
-    circuit_deg_map = payload.get("circuit_deg_map")
-    team_deg_map    = payload.get("team_deg_map")
+    circuit_deg_map  = payload.get("circuit_deg_map")
+    team_deg_map     = payload.get("team_deg_map")
+    circuit_encoder  = payload.get("circuit_encoder")
     feature_cols: list[str] = payload.get("feature_columns", [])
 
     # Resolve target-encoded values; fall back to global mean if unseen
@@ -101,6 +102,17 @@ def predict_degradation_curve(
         team_deg_map.get(team, team_deg_map.mean())
         if team_deg_map is not None else 1.0
     )
+
+    # Label-encoded circuit (new models only)
+    circuit_encoded = 0
+    if circuit_encoder is not None:
+        cid = circuit_id.lower().strip()
+        try:
+            circuit_encoded = int(circuit_encoder.transform([cid])[0])
+        except ValueError:
+            known = list(circuit_encoder.classes_)
+            match = next((c for c in known if cid in c or c in cid), None)
+            circuit_encoded = int(circuit_encoder.transform([match])[0]) if match else 0
 
     # Compound one-hot (dry model uses SOFT/MEDIUM/HARD/INTER only)
     all_compounds = ["SOFT", "MEDIUM", "HARD", "INTER", "WET"]
@@ -145,9 +157,10 @@ def predict_degradation_curve(
             "speed_st":   speed_st,
             "track_temp": track_temp,
             "air_temp":   air_temp,
-            # Encoded context
-            "circuit_deg": circuit_deg,
-            "team_deg":    team_deg,
+            # Encoded context (target-encoded for complex models, label-encoded for simple)
+            "circuit_deg":     circuit_deg,
+            "team_deg":        team_deg,
+            "circuit_encoded": circuit_encoded,
             **compound_ohe,
         }
 

@@ -391,6 +391,15 @@ class SimulatedLap(BaseModel):
     is_pit_in_lap: bool
     is_pit_out_lap: bool
     traffic_penalty: float = 0.0
+    position: Optional[int] = None
+    gap_to_leader: Optional[float] = None
+    actual_position: Optional[int] = None
+    actual_gap: Optional[float] = None
+
+class PositionSummary(BaseModel):
+    driver_code: str
+    actual_position: Optional[int] = None
+    simulated_position: int
 
 class SimulationResponse(BaseModel):
     session_key: str
@@ -398,7 +407,11 @@ class SimulationResponse(BaseModel):
     original_total_time: float
     simulated_total_time: float
     time_delta: float
+    actual_final_position: Optional[int] = None
+    simulated_final_position: Optional[int] = None
+    position_change: int = 0
     simulated_laps: list[SimulatedLap]
+    final_standings: list[PositionSummary] = []
 
 
 # ---------------------------------------------------------------------------

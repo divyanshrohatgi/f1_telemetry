@@ -11,6 +11,7 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Optional
+from sklearn.preprocessing import LabelEncoder
 
 from services.fastf1_loader import load_session, timedelta_to_seconds
 from services.lap_processor import _normalize_compound
@@ -50,10 +51,16 @@ def extract_race_features(
     # Weather: average per session
     avg_track_temp = 30.0
     avg_air_temp = 25.0
+    avg_humidity = 50.0
+    avg_rainfall = 0.0
     try:
         if session.weather_data is not None and not session.weather_data.empty:
             avg_track_temp = float(session.weather_data["TrackTemp"].mean())
             avg_air_temp = float(session.weather_data["AirTemp"].mean())
+            if "Humidity" in session.weather_data.columns:
+                avg_humidity = float(session.weather_data["Humidity"].mean())
+            if "Rainfall" in session.weather_data.columns:
+                avg_rainfall = float(session.weather_data["Rainfall"].mean())
     except Exception:
         pass
 
@@ -111,7 +118,8 @@ def extract_race_features(
             base_time = stint_laps["lap_time_sec"].iloc[0]  # Reference: lap 1 of stint
 
             for i, (_, row) in enumerate(stint_laps.iterrows()):
-                tyre_age = int(row.get("TyreLife", i + 1))
+                tyre_life = row.get("TyreLife", None)
+                tyre_age = int(tyre_life) if tyre_life is not None and not pd.isna(tyre_life) else i + 1
                 lap_number = int(row["LapNumber"])
                 lap_time = row["lap_time_sec"]
 
@@ -131,6 +139,18 @@ def extract_race_features(
                     "air_temp": avg_air_temp,
                     "fuel_corrected_lap_time": fuel_corrected_time,
                     "lap_time_delta": lap_time_delta,
+                    # Extra fields saved for future model iterations
+                    "lap_number": lap_number,
+                    "driver": str(row.get("Driver", "")),
+                    "team": str(row.get("Team", "")),
+                    "position": float(row["Position"]) if pd.notna(row.get("Position")) else float("nan"),
+                    "stint": int(row["Stint"]) if pd.notna(row.get("Stint")) else None,
+                    "speed_i1": float(row["SpeedI1"]) if pd.notna(row.get("SpeedI1")) else float("nan"),
+                    "speed_i2": float(row["SpeedI2"]) if pd.notna(row.get("SpeedI2")) else float("nan"),
+                    "speed_st": float(row["SpeedST"]) if pd.notna(row.get("SpeedST")) else float("nan"),
+                    "humidity": avg_humidity,
+                    "rainfall": avg_rainfall,
+                    "is_fresh_tyre": tyre_age == 1,
                 })
 
     if not records:
@@ -139,28 +159,70 @@ def extract_race_features(
     return pd.DataFrame(records)
 
 
-def build_feature_matrix(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+DRY_FEATURE_COLS = [
+    "tyre_age", "track_temp", "air_temp", "humidity", "circuit_encoded",
+    "position", "speed_i1", "speed_i2", "speed_st", "is_fresh_tyre",
+    "compound_SOFT", "compound_MEDIUM", "compound_HARD", "compound_INTER", "compound_WET",
+]
+
+WET_FEATURE_COLS = [
+    "tyre_age", "track_temp", "air_temp", "humidity", "circuit_encoded",
+    "position", "speed_i1", "speed_i2", "speed_st", "is_fresh_tyre",
+    "compound_SOFT", "compound_MEDIUM", "compound_HARD", "compound_INTER", "compound_WET",
+]
+
+
+def build_feature_matrix(
+    df: pd.DataFrame, mode: str = "dry"
+) -> tuple[pd.DataFrame, pd.Series, LabelEncoder]:
     """
     Transform raw features into the ML-ready feature matrix.
 
-    Returns (X, y) where:
-      X: DataFrame with encoded features
-      y: Series of lap_time_delta (seconds)
+    mode: "dry" (rainfall==0) or "wet" (rainfall>0)
+
+    Returns (X, y, circuit_encoder)
     """
+    df = df.copy()
+
+    # Split by rainfall
+    if mode == "dry":
+        df = df[df["rainfall"].fillna(0) == 0]
+    else:
+        df = df[df["rainfall"].fillna(0) > 0]
+
+    if len(df) == 0:
+        raise ValueError(f"No laps for mode='{mode}' after rainfall split")
+
+    # Label-encode circuit
+    circuit_encoder = LabelEncoder()
+    df["circuit_encoded"] = circuit_encoder.fit_transform(df["circuit_id"].astype(str))
+
+    # Fill missing numeric fields
+    for col in ["position", "speed_i1", "speed_i2", "speed_st"]:
+        if col in df.columns:
+            df[col] = df[col].fillna(df[col].median())
+        else:
+            df[col] = 0.0
+
+    df["is_fresh_tyre"] = df["is_fresh_tyre"].fillna(False).astype(int)
+    df["humidity"] = df["humidity"].fillna(50.0)
+
     # One-hot encode compound
     compound_dummies = pd.get_dummies(df["compound"], prefix="compound")
-
-    # Ensure all compounds are represented (for consistent feature columns)
     for c in VALID_COMPOUNDS:
         col = f"compound_{c}"
         if col not in compound_dummies.columns:
             compound_dummies[col] = 0
 
+    feature_cols = DRY_FEATURE_COLS if mode == "dry" else WET_FEATURE_COLS
+    base_cols = [c for c in feature_cols if not c.startswith("compound_")]
+    compound_cols = [c for c in feature_cols if c.startswith("compound_")]
+
     X = pd.concat([
-        df[["tyre_age", "track_temp", "air_temp"]],
-        compound_dummies[[f"compound_{c}" for c in VALID_COMPOUNDS]],
+        df[base_cols],
+        compound_dummies[compound_cols],
     ], axis=1)
 
     y = df["lap_time_delta"]
 
-    return X, y
+    return X, y, circuit_encoder

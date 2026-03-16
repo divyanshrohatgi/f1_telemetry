@@ -113,7 +113,10 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
   const [loadingPred, setLoadingPred]         = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const circuitId   = sessionMeta ? toCircuitId(sessionMeta.circuit_name) : '';
+  const [circuitId, setCircuitId] = useState<string>(
+    sessionMeta ? toCircuitId(sessionMeta.circuit_name) : ''
+  );
+  const [availableCircuits, setAvailableCircuits] = useState<Array<{ id: string; name: string }>>([]);
   const { airTemp, trackTemp } = parseWeather(sessionMeta?.weather_summary ?? null);
 
   // ── Reset + fetch strategy when session changes ──────────────────────────
@@ -134,6 +137,35 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
       .catch(() => {/* use defaults */});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionMeta?.session_key]);
+
+  // ── Sync circuitId when session changes ──────────────────────────────────
+  useEffect(() => {
+    if (sessionMeta?.circuit_name) {
+      setCircuitId(toCircuitId(sessionMeta.circuit_name));
+    }
+  }, [sessionMeta?.session_key]);
+
+  // ── Fetch all circuits in the season ─────────────────────────────────────
+  useEffect(() => {
+    if (!sessionMeta) return;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    fetch(`${backendUrl}/api/v1/sessions/${sessionMeta.year}`)
+      .then(r => r.json())
+      .then(data => {
+        const gps = data.grands_prix || data.events || data;
+        if (Array.isArray(gps)) {
+          const circuits = gps
+            .map((gp: any) => ({
+              id: toCircuitId(gp.location || gp.circuit || gp.name || ''),
+              name: gp.location || gp.circuit || gp.name || gp.event_name || '',
+            }))
+            .filter((c: any) => c.id && c.name);
+          setAvailableCircuits(circuits);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionMeta?.year]);
 
   // ── Fetch laps when driver changes ───────────────────────────────────────
   useEffect(() => {
@@ -172,7 +204,7 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
       .catch(e => setError(e?.message ?? 'Prediction failed'))
       .finally(() => setLoadingPred(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStintNum, selectedDriver, sessionMeta?.session_key]);
+  }, [selectedStintNum, selectedDriver, sessionMeta?.session_key, circuitId]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const drvStrat = strategy.find(d => d.driver_code === selectedDriver) ?? null;
@@ -318,10 +350,35 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
             </div>
           )}
 
-          {/* Pit loss info */}
+          {/* Circuit selector + pit loss */}
           <div style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, padding: 12 }}>
             <div style={{ fontSize: 9, color: TEAL, fontFamily: 'JetBrains Mono', letterSpacing: '0.12em', marginBottom: 8 }}>
-              PIT LOSS · {circuitId.replace(/_/g, ' ').toUpperCase()}
+              CIRCUIT
+            </div>
+            <select
+              value={circuitId}
+              onChange={e => setCircuitId(e.target.value)}
+              style={{
+                width: '100%', padding: '5px 7px', fontSize: 10,
+                background: '#111', color: '#F0F0F0',
+                border: '1px solid #2A2A2A', borderRadius: 4,
+                outline: 'none', cursor: 'pointer', marginBottom: 10,
+                fontFamily: 'JetBrains Mono',
+              }}
+            >
+              {sessionMeta?.circuit_name && (
+                <option value={toCircuitId(sessionMeta.circuit_name)}>
+                  {sessionMeta.circuit_name} (current)
+                </option>
+              )}
+              {availableCircuits
+                .filter(c => c.id !== toCircuitId(sessionMeta?.circuit_name || ''))
+                .map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+            </select>
+            <div style={{ fontSize: 9, color: TEAL, fontFamily: 'JetBrains Mono', letterSpacing: '0.12em', marginBottom: 6 }}>
+              PIT LOSS
             </div>
             {[
               { label: 'GREEN FLAG', value: pitLoss.green, color: '#00FF87' },

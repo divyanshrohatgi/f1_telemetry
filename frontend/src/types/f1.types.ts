@@ -352,6 +352,16 @@ export interface SimulatedLap {
   is_pit_in_lap: boolean;
   is_pit_out_lap: boolean;
   traffic_penalty: number;
+  position?: number | null;
+  gap_to_leader?: number | null;
+  actual_position?: number | null;
+  actual_gap?: number | null;
+}
+
+export interface PositionSummary {
+  driver_code: string;
+  actual_position: number | null;
+  simulated_position: number;
 }
 
 export interface SimulationResponse {
@@ -360,7 +370,11 @@ export interface SimulationResponse {
   original_total_time: number;
   simulated_total_time: number;
   time_delta: number;
+  actual_final_position?: number | null;
+  simulated_final_position?: number | null;
+  position_change?: number;
   simulated_laps: SimulatedLap[];
+  final_standings?: PositionSummary[];
 }
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ import fastf1
 import numpy as np
 import pandas as pd
 
-OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pit_loss.json")
+OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pit_loss_by_circuit.json")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache")
 
 fastf1.Cache.enable_cache(CACHE_DIR)
@@ -41,8 +41,9 @@ def compute_pit_losses(seasons: list) -> dict:
 
         for _, event in schedule.iterrows():
             gp = str(event.get("EventName", ""))
+            location = str(event.get("Location", gp)).lower().replace(" ", "_").replace("-", "_")
             round_num = int(event.get("RoundNumber", 0))
-            print(f"  {year} R{round_num} {gp} ...", end=" ", flush=True)
+            print(f"  {year} R{round_num} {gp} ({location}) ...", end=" ", flush=True)
 
             try:
                 session = fastf1.get_session(year, round_num, "R")
@@ -103,15 +104,15 @@ def compute_pit_losses(seasons: list) -> dict:
 
             if losses:
                 median_loss = float(np.median(losses))
-                accum.setdefault(gp, []).append(median_loss)
+                accum.setdefault(location, []).append(median_loss)
                 print(f"OK ({len(losses)} pit stops, median={median_loss:.1f}s)")
             else:
                 print("no valid pit data")
 
-    # Final average per circuit
+    # Final average per circuit — nested under "green" to match simulator format
     result = {}
-    for gp, season_medians in accum.items():
-        result[gp] = round(float(np.mean(season_medians)), 2)
+    for location, season_medians in accum.items():
+        result[location] = {"green": round(float(np.mean(season_medians)), 2)}
 
     return result
 
