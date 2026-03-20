@@ -107,19 +107,22 @@ def extract_race_features(
 
         total_laps = int(driver_laps["LapNumber"].max())
 
-        # Per stint: compute delta vs lap 1 of that stint
+        # Per stint: compute delta vs lap 3 of that stint (tyres up to temp by then)
         for stint_num in driver_laps["Stint"].dropna().unique():
             stint_laps = driver_laps[driver_laps["Stint"] == stint_num].copy()
 
-            if len(stint_laps) < 2:
+            if len(stint_laps) < 4:  # Need enough laps after skipping warm-up
                 continue
 
             compound = stint_laps["compound_norm"].iloc[0]
-            base_time = stint_laps["lap_time_sec"].iloc[0]  # Reference: lap 1 of stint
+            # Skip first 2 laps (out-lap has cold tyres, lap 2 may have pit traffic)
+            # Use lap 3 as baseline — tyres are up to temperature by then
+            base_time = stint_laps["lap_time_sec"].iloc[2]
 
-            for i, (_, row) in enumerate(stint_laps.iterrows()):
+            # Only process from lap 3 onwards
+            for i, (_, row) in enumerate(stint_laps.iloc[2:].iterrows()):
                 tyre_life = row.get("TyreLife", None)
-                tyre_age = int(tyre_life) if tyre_life is not None and not pd.isna(tyre_life) else i + 1
+                tyre_age = int(tyre_life) if tyre_life is not None and not pd.isna(tyre_life) else i + 3
                 lap_number = int(row["LapNumber"])
                 lap_time = row["lap_time_sec"]
 
@@ -128,7 +131,16 @@ def extract_race_features(
                 fuel_correction = (total_laps - lap_number) * FUEL_BURN_PER_LAP
                 fuel_corrected_time = lap_time - fuel_correction
 
-                lap_time_delta = lap_time - base_time  # seconds slower vs lap 1 of stint
+                # Fuel-correct both times to remove fuel weight effect
+                # Add time back proportional to laps driven (later laps are artificially fast from light fuel)
+                base_lap_number = int(stint_laps["LapNumber"].iloc[2])
+                base_fc = base_time + (base_lap_number - 1) * FUEL_BURN_PER_LAP
+                current_fc = lap_time + (lap_number - 1) * FUEL_BURN_PER_LAP
+                lap_time_delta = current_fc - base_fc
+
+                # Skip obvious outliers at extraction time
+                if abs(lap_time_delta) > 8.0:
+                    continue
 
                 records.append({
                     "circuit_id": circuit_id,
@@ -150,7 +162,7 @@ def extract_race_features(
                     "speed_st": float(row["SpeedST"]) if pd.notna(row.get("SpeedST")) else float("nan"),
                     "humidity": avg_humidity,
                     "rainfall": avg_rainfall,
-                    "is_fresh_tyre": tyre_age == 1,
+                    "is_fresh_tyre": tyre_age <= 3,
                 })
 
     if not records:
@@ -183,6 +195,20 @@ def build_feature_matrix(
     Returns (X, y, circuit_encoder)
     """
     df = df.copy()
+
+    # ── Recompute lap_time_delta from raw data at training time ──────────
+    # Parquet files are never modified. Formula tweaks only require retraining.
+    # fuel_corrected_lap_time was saved with old constant 0.035 — recover raw time first.
+    FUEL_CORRECTION = 0.065  # Real F1 fuel effect ~0.065s/lap
+
+    if "fuel_corrected_lap_time" in df.columns and "lap_number" in df.columns:
+        total_per_race = df.groupby(["circuit_id", "year"])["lap_number"].transform("max")
+        raw_time = df["fuel_corrected_lap_time"] + (total_per_race - df["lap_number"]) * 0.035
+        df["_fc"] = raw_time + (df["lap_number"] - 1) * FUEL_CORRECTION
+        df["lap_time_delta"] = df.groupby(
+            ["driver", "circuit_id", "year", "stint"]
+        )["_fc"].transform(lambda g: g - g.iloc[0])
+        df.drop(columns=["_fc"], inplace=True)
 
     # Split by rainfall
     if mode == "dry":

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SeasonResponse, GrandPrixInfo } from '../../types/f1.types';
 import { formatSessionType } from '../../utils/formatting';
 
@@ -23,6 +23,21 @@ const SessionSelector: React.FC<SessionSelectorProps> = ({
   const [selectedYear, setSelectedYear] = useState(2024);
   const [selectedGP, setSelectedGP] = useState<GrandPrixInfo | null>(null);
   const [selectedSession, setSelectedSession] = useState<string>('R');
+
+  // Load season on mount if not already loaded for the default year
+  useEffect(() => {
+    if (!season || season.year !== selectedYear) {
+      onYearChange(selectedYear);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Clear selected GP when the season data changes to a different year
+  useEffect(() => {
+    if (season && season.year !== selectedYear) {
+      setSelectedGP(null);
+    }
+  }, [season, selectedYear]);
 
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
@@ -64,9 +79,9 @@ const SessionSelector: React.FC<SessionSelectorProps> = ({
         label="GRAND PRIX"
         value={selectedGP?.round_number?.toString() ?? ''}
         onChange={handleGPChange}
-        disabled={isLoadingSchedule || !season}
-        placeholder={isLoadingSchedule ? 'Loading...' : 'Select GP'}
-        options={(season?.grands_prix ?? []).map((gp) => ({
+        disabled={isLoadingSchedule || !season || season.year !== selectedYear}
+        placeholder={isLoadingSchedule || (season && season.year !== selectedYear) ? 'Loading...' : 'Select GP'}
+        options={(season?.year === selectedYear ? season.grands_prix : []).map((gp) => ({
           value: gp.round_number.toString(),
           label: `R${gp.round_number} ${gp.name.replace(' Grand Prix', '').replace(' GP', '')}`,
         }))}

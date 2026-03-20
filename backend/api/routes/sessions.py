@@ -3,7 +3,15 @@ Session and GP listing routes.
 """
 
 import logging
+import unicodedata
 from fastapi import APIRouter, HTTPException
+
+
+def _normalize_str(s: str) -> str:
+    """Lowercase, strip accents, replace spaces/hyphens with underscores."""
+    nfkd = unicodedata.normalize("NFKD", s)
+    ascii_str = nfkd.encode("ascii", "ignore").decode("ascii")
+    return ascii_str.lower().replace(" ", "_").replace("-", "_")
 
 from models.schemas import SeasonResponse, GrandPrixInfo, SessionMetadata, DriverSessionInfo
 from services.fastf1_loader import get_season_schedule, load_session, get_drivers_for_session
@@ -41,6 +49,8 @@ async def get_season(year: int):
         raise HTTPException(status_code=503, detail=f"Failed to load schedule: {exc}")
 
     grands_prix = []
+
+    schedule = schedule.sort_values("RoundNumber").reset_index(drop=True)
 
     for _, event in schedule.iterrows():
         # Determine available session types for this event
@@ -97,14 +107,14 @@ async def get_session_metadata(year: int, gp: str, session_type: str):
             detail=f"Failed to load session {year}/{gp}/{session_type}: {exc}"
         )
 
-    # Build session key
-    sanitized_gp = gp.lower().replace(" ", "_").replace("-", "_")
-    session_key = f"{year}_{sanitized_gp}_{session_type_upper.lower()}"
-
-    # Get session event info
+    # Get session event info first so we can use the real GP name in the key
     event = session.event
     circuit_name = str(event.get("Location", event.get("EventName", "Unknown")))
     gp_name = str(event.get("EventName", gp))
+
+    # Build session key from actual GP name (not raw param — handles round numbers)
+    sanitized_gp = _normalize_str(gp_name)
+    session_key = f"{year}_{sanitized_gp}_{session_type_upper.lower()}"
     country = str(event.get("Country", "Unknown"))
     session_date = str(event.get("EventDate", ""))[:10]
 

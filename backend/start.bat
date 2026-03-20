@@ -1,4 +1,3 @@
 @echo off
 cd /d %~dp0
-call venv\Scripts\activate.bat
-python -m uvicorn api.main:app --reload --port 8000
+C:\Users\divya\anaconda3\python.exe -m uvicorn api.main:app --reload --port 8001

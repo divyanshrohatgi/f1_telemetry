@@ -12,6 +12,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from api.routes import sessions, laps, telemetry, strategy, comparison, weather, prediction, pitsense, results, standings, simulate, homepage, live, whatif
 from api.routes import replay_ws
+from api.limiter import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -32,6 +35,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 import os
 import json
@@ -44,7 +49,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-cors_origins_str = os.getenv("CORS_ORIGINS", '["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"]')
+cors_origins_str = os.getenv("CORS_ORIGINS", '["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:3000"]')
 try:
     origins = json.loads(cors_origins_str)
 except json.JSONDecodeError:

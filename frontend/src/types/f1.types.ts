@@ -252,6 +252,7 @@ export interface PitWindowResponse {
   urgency: 'now' | 'soon' | 'watch' | 'ok';
   cumulative_loss_at_window: number;
   explanation: string;
+  positions_lost?: number | null;
 }
 
 // ---------------------------------------------------------------------------

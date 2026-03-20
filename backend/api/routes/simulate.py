@@ -3,16 +3,13 @@ from fastapi import APIRouter, HTTPException
 
 from models.schemas import SimulationRequest, SimulationResponse
 from services.simulator import simulate_race_strategy
-from api.limiter import limiter
-from fastapi import Request
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/v1/simulate/{year}/{gp}/{session_type}", response_model=SimulationResponse)
-@limiter.limit("10/minute")
-async def run_simulation(request: Request, year: int, gp: str, session_type: str, req: SimulationRequest):
+async def run_simulation(year: int, gp: str, session_type: str, req: SimulationRequest):
     """
     Run a mathematical race strategy simulation for a specific driver.
     """
@@ -20,7 +17,7 @@ async def run_simulation(request: Request, year: int, gp: str, session_type: str
         result = simulate_race_strategy(
             year=year,
             gp=gp,
-            session_type=session_type,
+            session_type=session_type.upper(),
             driver_code=req.driver_code,
             starting_compound=req.starting_compound,
             pit_stops=req.pit_stops

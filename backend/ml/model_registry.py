@@ -9,6 +9,7 @@ from typing import Optional
 
 import joblib
 import numpy as np
+import pandas as pd
 from sklearn.pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
@@ -143,6 +144,7 @@ def predict_degradation_curve(
             # Tyre age (used by wet model)
             "tyre_age":     age,
             "tyre_age_sq":  age ** 2,
+            "age_x_temp":   age * track_temp,
             # Race context
             "race_lap_number":    race_lap,
             "prev_lap_delta":     prev_delta,
@@ -164,7 +166,7 @@ def predict_degradation_curve(
             **compound_ohe,
         }
 
-        features = np.array([[row.get(col, 0.0) for col in feature_cols]])
+        features = pd.DataFrame([{col: row.get(col, 0.0) for col in feature_cols}])
 
         try:
             pred = float(model.predict(features)[0])
@@ -263,12 +265,18 @@ def predict_pit_window(
 
     cum_at_window = curve[window_start - 1]["predicted_delta"] if window_start <= len(curve) else 0.0
 
+    # Rejoin position estimate: cars within pit_loss_time seconds behind will pass
+    positions_lost = None
+    if gap_behind is not None:
+        positions_lost = max(0, int(pit_loss_time / max(gap_behind, 0.5)))
+
     return {
         "recommended_window_start": window_start,
         "recommended_window_end":   window_end,
         "urgency":                  urgency,
         "cumulative_loss_at_window": cum_at_window,
         "explanation":              explanation,
+        "positions_lost":           positions_lost,
     }
 
 

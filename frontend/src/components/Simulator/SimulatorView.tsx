@@ -44,9 +44,8 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
         const gp = parts.slice(1, -1).join('_');
         const sessionType = parts[parts.length - 1];
 
-        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        // Just fetch lap 1 to get the circuit layout
-        const endpoint = `${backendUrl}/api/v1/telemetry/${year}/${gp}/${sessionType}?driver=${driver}&lap=1`;
+        // Just fetch lap 1 to get the circuit layout (use proxy-relative path)
+        const endpoint = `/api/v1/telemetry/${year}/${gp}/${sessionType}/${driver}/1`;
         
         const response = await fetch(endpoint);
         if (response.ok) {
@@ -75,9 +74,7 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
     const year = parts[0];
     const gp = parts.slice(1, -1).join('_');
     const sessionType = parts[parts.length - 1];
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-    fetch(`${backendUrl}/api/v1/strategy/${year}/${gp}/${sessionType}`)
+    fetch(`/api/v1/strategy/${year}/${gp}/${sessionType}`)
       .then(r => r.json())
       .then(data => {
         const drvStrategy = data.drivers?.find((d: any) => d.driver_code === driver);
@@ -108,8 +105,7 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
       const gp = parts.slice(1, -1).join('_');
       const sessionType = parts[parts.length - 1];
 
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const endpoint = `${backendUrl}/api/v1/simulate/${year}/${gp}/${sessionType}`;
+      const endpoint = `/api/v1/simulate/${year}/${gp}/${sessionType}`;
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -270,6 +266,15 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
   return (
     <div className="flex flex-col h-full bg-f1-dark p-6 overflow-y-auto" style={{ color: 'var(--color-text-primary)' }}>
       <h2 className="text-2xl font-bold uppercase mb-6 tracking-wide">Strategy Simulator: {driver}</h2>
+      {sessionMeta && parseInt(sessionMeta.session_key.split('_')[0]) < 2022 && (
+        <div style={{
+          padding: '8px 12px', borderRadius: 6, marginBottom: 12,
+          background: 'rgba(255,201,6,0.08)', border: '1px solid rgba(255,201,6,0.2)',
+          fontSize: 10, color: '#FFC906', fontFamily: 'JetBrains Mono',
+        }}>
+          Predictions may be less accurate for pre-2022 races — model trained on 2022–2025 data.
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-[400px_1fr] gap-8 mb-8">
         {/* Strategy Configuration Panel */}
@@ -437,10 +442,10 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
                 </div>
               )}
               
-              <div className="flex-1 bg-f1-black p-4 rounded border border-f1-gray-800 mb-6 min-h-[250px] flex flex-col">
+              <div className="bg-f1-black p-4 rounded border border-f1-gray-800 mb-6">
                 <div className="text-sm uppercase text-f1-gray-500 mb-4">Simulated Pace Profile</div>
-                <div className="flex-1 w-full min-h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full">
+                  <ResponsiveContainer width="100%" height={220}>
                     <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                       <XAxis dataKey="lap" stroke="#666" tick={{ fill: '#666', fontSize: 11 }} />
@@ -470,10 +475,10 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ sessionMeta, driver }) =>
               
               {/* Position by lap chart */}
               {result.simulated_laps.some(l => l.position != null) && (
-                <div className="flex-1 bg-f1-black p-4 rounded border border-f1-gray-800 mb-6 min-h-[220px] flex flex-col">
+                <div className="bg-f1-black p-4 rounded border border-f1-gray-800 mb-6">
                   <div className="text-sm uppercase text-f1-gray-500 mb-4">Position by Lap — Actual vs Simulated</div>
-                  <div className="flex-1 w-full min-h-[180px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="w-full">
+                    <ResponsiveContainer width="100%" height={200}>
                       <LineChart
                         data={result.simulated_laps
                           .filter(l => l.position != null)

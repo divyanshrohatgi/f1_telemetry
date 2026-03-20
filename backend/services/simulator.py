@@ -6,8 +6,14 @@ Calculates tyre degradation, fuel burn, pit loss, and traffic (dirty air) effect
 import json
 import math
 import logging
+import unicodedata
 import pandas as pd
 from pathlib import Path
+
+
+def _normalize_key(s: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", s)
+    return nfkd.encode("ascii", "ignore").decode("ascii").lower().replace(" ", "_").replace("-", "_")
 from typing import Optional
 
 from services.fastf1_loader import load_session, get_drivers_for_session
@@ -36,14 +42,14 @@ _baselines_data = _load_json("compound_baselines.json")
 
 def _get_pit_loss(circuit_key: str, condition: str = "green") -> float:
     """Get pit loss for a circuit. Falls back to 22.0 if unknown."""
-    key = circuit_key.lower().strip()
-    data = _pit_loss_data.get(key)
-    if data:
-        return data.get(condition, data.get("green", 22.0))
-    # Try partial match
-    for k, v in _pit_loss_data.items():
-        if key in k or k in key:
-            return v.get(condition, v.get("green", 22.0))
+    key = _normalize_key(circuit_key)
+    # Normalize all stored keys too for matching
+    for stored_key, data in _pit_loss_data.items():
+        nk = _normalize_key(stored_key)
+        if nk == key or key in nk or nk in key:
+            if isinstance(data, dict):
+                return data.get(condition, data.get("green", 22.0))
+            return float(data)
     return 22.0
 
 
@@ -108,7 +114,7 @@ def simulate_race_strategy(
         pass
 
     # 1. Establish the historical baseline
-    driver_laps = laps.pick_driver(driver_code)
+    driver_laps = laps.pick_drivers(driver_code)
     if len(driver_laps) == 0:
         raise ValueError(f"No laps found for driver {driver_code}")
 
@@ -121,7 +127,7 @@ def simulate_race_strategy(
         traffic_data[lap_idx] = []
 
     for other in other_drivers:
-        olaps = laps.pick_driver(other)
+        olaps = laps.pick_drivers(other)
         cumul = 0.0
         for _, row in olaps.iterrows():
             lap_num = int(row['LapNumber'])
@@ -259,7 +265,7 @@ def simulate_race_strategy(
     all_cumulative = {}
 
     for drv_code in all_driver_codes:
-        drv_laps_df = laps.pick_driver(drv_code)
+        drv_laps_df = laps.pick_drivers(drv_code)
         cumul = 0.0
         cumul_by_lap = {}
         for _, row in drv_laps_df.iterrows():
@@ -276,7 +282,7 @@ def simulate_race_strategy(
     # ── Compute actual positions (before simulation) ──
     actual_cumulative = {}
     for drv_code in all_driver_codes:
-        drv_laps_df = laps.pick_driver(drv_code)
+        drv_laps_df = laps.pick_drivers(drv_code)
         cumul = 0.0
         cumul_by_lap = {}
         for _, row in drv_laps_df.iterrows():

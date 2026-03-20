@@ -18,8 +18,8 @@ backend/data/
 backend/.venv/
 .venv/
 
-# ML models (binary, too large for git — rebuild with train.py)
-backend/ml/saved_models/*.pkl
+# ML models committed for Docker deploy — retrain locally and recommit after changes
+# backend/ml/saved_models/*.pkl
 
 # Node
 frontend/node_modules/

@@ -114,7 +114,7 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
   const [error, setError] = useState<string | null>(null);
 
   const [circuitId, setCircuitId] = useState<string>(
-    sessionMeta ? toCircuitId(sessionMeta.circuit_name) : ''
+    sessionMeta?.circuit_name ? toCircuitId(sessionMeta.circuit_name) : ''
   );
   const [availableCircuits, setAvailableCircuits] = useState<Array<{ id: string; name: string }>>([]);
   const { airTemp, trackTemp } = parseWeather(sessionMeta?.weather_summary ?? null);
@@ -132,9 +132,11 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
       .catch(() => setStrategy([]))
       .finally(() => setLoadingStrategy(false));
 
-    api.pitLoss(circuitId)
-      .then(d => setPitLoss({ green: d.green, sc: d.sc, vsc: d.vsc }))
-      .catch(() => {/* use defaults */});
+    if (circuitId) {
+      api.pitLoss(circuitId)
+        .then(d => setPitLoss({ green: d.green, sc: d.sc, vsc: d.vsc }))
+        .catch(() => {/* use defaults */});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionMeta?.session_key]);
 
@@ -148,8 +150,7 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
   // ── Fetch all circuits in the season ─────────────────────────────────────
   useEffect(() => {
     if (!sessionMeta) return;
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    fetch(`${backendUrl}/api/v1/sessions/${sessionMeta.year}`)
+    fetch(`/api/v1/sessions/${sessionMeta.year}`)
       .then(r => r.json())
       .then(data => {
         const gps = data.grands_prix || data.events || data;
@@ -250,6 +251,16 @@ const PitSense: React.FC<PitSenseProps> = ({ sessionMeta, onGoToSimulator }) => 
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: 'var(--color-bg)', padding: '16px 20px' }}>
+      {/* Pre-2022 accuracy warning */}
+      {sessionMeta.year < 2022 && (
+        <div style={{
+          padding: '8px 12px', borderRadius: 6, marginBottom: 12,
+          background: 'rgba(255,201,6,0.08)', border: '1px solid rgba(255,201,6,0.2)',
+          fontSize: 10, color: '#FFC906', fontFamily: 'JetBrains Mono',
+        }}>
+          Predictions may be less accurate for pre-2022 races — model trained on 2022–2025 data.
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <PitSenseBadge />
@@ -602,6 +613,11 @@ const ScenarioCard: React.FC<ScenarioCardProps> = ({ label, pitLoss, window, col
           <div style={{ fontSize: 9, color: '#444', marginTop: 4, lineHeight: 1.4 }}>
             {window.explanation}
           </div>
+          {window.positions_lost != null && window.positions_lost > 0 && (
+            <div style={{ fontSize: 9, color, marginTop: 4, fontFamily: 'JetBrains Mono', fontWeight: 700 }}>
+              ~{window.positions_lost} position{window.positions_lost > 1 ? 's' : ''} lost during stop
+            </div>
+          )}
         </>
       )}
       {!loading && !window && (
