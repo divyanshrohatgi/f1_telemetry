@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { api } from '../../api/client';
 import type {
-  SessionMetadata, DriverStrategy, Stint,
+  SessionMetadata, DriverStrategy,
   DegradationResponse, PitWindowResponse, TyreCompound, LapData,
 } from '../../types/f1.types';
 
