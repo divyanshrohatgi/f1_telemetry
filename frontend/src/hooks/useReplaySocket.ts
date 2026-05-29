@@ -84,7 +84,10 @@ export function useReplaySocket(year: number, gp: string, sessionType: string) {
   useEffect(() => {
     if (!year || !gp || !sessionType) return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = (import.meta as any).env?.VITE_API_URL?.replace(/^https?:\/\//, '') ?? 'localhost:8000';
+    // Default to the same origin serving the page (proxied to the backend by
+    // vite in dev and nginx in prod); only override if VITE_API_URL is set.
+    const envHost = (import.meta as any).env?.VITE_API_URL?.replace(/^https?:\/\//, '');
+    const host = envHost || window.location.host;
     const url = `${protocol}//${host}/ws/replay/${year}/${encodeURIComponent(gp)}/${sessionType}`;
 
     const ws = new WebSocket(url);
