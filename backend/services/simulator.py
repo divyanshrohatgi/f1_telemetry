@@ -113,21 +113,80 @@ def simulate_race_strategy(
     except Exception:
         pass
 
-    # 1. Establish the historical baseline
+    # 1. Build actual lap-by-lap data for this driver
     driver_laps = laps.pick_drivers(driver_code)
     if len(driver_laps) == 0:
         raise ValueError(f"No laps found for driver {driver_code}")
 
     total_laps = int(laps['LapNumber'].max())
+    valid_actual_laps = driver_laps.dropna(subset=['LapTime'])
 
-    # Historical cumulative times for traffic simulation
-    other_drivers = [d for d in get_drivers_for_session(session, year).keys() if d != driver_code]
-    traffic_data = {}
-    for lap_idx in range(1, total_laps + 1):
-        traffic_data[lap_idx] = []
+    actual_lap_times = {}
+    for _, row in valid_actual_laps.iterrows():
+        actual_lap_times[int(row['LapNumber'])] = row['LapTime'].total_seconds()
 
+    actual_race_time_total = sum(actual_lap_times.values())
+
+    # 2. Base pace = MEDIAN of clean laps
+    clean_laps = driver_laps.pick_quicklaps()
+    if len(clean_laps) == 0:
+        clean_laps = valid_actual_laps
+
+    clean_times = clean_laps['LapTime'].dt.total_seconds() if len(clean_laps) > 0 else pd.Series(dtype=float)
+    if len(clean_times) > 0:
+        median_pace = float(clean_times.median())
+        compound_mode = clean_laps['Compound'].mode()
+        best_compound = str(compound_mode.iloc[0]).upper() if len(compound_mode) > 0 else 'MEDIUM'
+    else:
+        median_pace = 90.0
+        best_compound = 'MEDIUM'
+
+    # 3. Per-circuit pit loss
+    circuit_key = str(session.event.get("Location", gp)).lower().strip()
+    pit_time_loss = _get_pit_loss(circuit_key, "green")
+
+    # 4. Pre-compute ML degradation curves
+    all_compounds = [starting_compound or str(driver_laps.iloc[0]['Compound'])] + [p.compound for p in pit_stops]
+    deg_curves = _build_deg_curves(all_compounds, circuit_key, track_temp, air_temp, year, total_laps)
+
+    # 5. Compound pace offsets relative to best_compound median
+    compound_offsets = {"SOFT": -0.8, "MEDIUM": 0.0, "HARD": 0.5, "INTER": 3.0, "WET": 5.0, "UNKNOWN": 0.0}
+    base_offset = compound_offsets.get(best_compound, 0.0)
+    base_paces = {comp: median_pace + (offset - base_offset) for comp, offset in compound_offsets.items()}
+
+    # 6. Find divergence lap — first lap where simulated pit schedule differs from actual
+    actual_pit_laps = set()
+    for _, row in valid_actual_laps.iterrows():
+        if pd.notna(row.get('PitInTime')):
+            actual_pit_laps.add(int(row['LapNumber']))
+
+    simulated_pit_laps = sorted(set(p.lap for p in pit_stops))
+
+    diverge_lap = total_laps + 1
+    all_pit_laps = actual_pit_laps | set(simulated_pit_laps)
+    for pl in sorted(all_pit_laps):
+        if pl not in actual_pit_laps or pl not in set(simulated_pit_laps):
+            diverge_lap = pl
+            break
+        # Same lap in both — check if the fitted compound differs.
+        # The compound the driver switched TO is recorded on the lap AFTER the
+        # stop (the out-lap); the in-lap still carries the old stint's tyre.
+        sim_compound = next((p.compound.upper() for p in pit_stops if p.lap == pl), None)
+        act_compound_row = valid_actual_laps[valid_actual_laps['LapNumber'] == pl + 1]
+        act_compound = None
+        if len(act_compound_row) > 0:
+            nc = act_compound_row.iloc[0].get('Compound')
+            if pd.notna(nc):
+                act_compound = str(nc).upper()
+        if sim_compound and act_compound and sim_compound != act_compound:
+            diverge_lap = pl
+            break
+
+    # 7. Build traffic data from other drivers' actual cumulative times
+    other_drivers = [d for d in laps['Driver'].unique() if str(d) != driver_code]
+    traffic_data = {lap_idx: [] for lap_idx in range(1, total_laps + 1)}
     for other in other_drivers:
-        olaps = laps.pick_drivers(other)
+        olaps = laps.pick_drivers(str(other))
         cumul = 0.0
         for _, row in olaps.iterrows():
             lap_num = int(row['LapNumber'])
@@ -137,53 +196,7 @@ def simulate_race_strategy(
                 if lap_num in traffic_data:
                     traffic_data[lap_num].append(cumul)
 
-    # Calculate actual race time
-    actual_race_time_total = 0.0
-    valid_actual_laps = driver_laps.dropna(subset=['LapTime'])
-    if len(valid_actual_laps) > 0:
-        actual_race_time_total = valid_actual_laps['LapTime'].dt.total_seconds().sum()
-
-    # Determine baseline pace
-    clean_laps = driver_laps.pick_quicklaps()
-    if len(clean_laps) == 0:
-        clean_laps = valid_actual_laps
-
-    best_lap_idx = clean_laps['LapTime'].dt.total_seconds().idxmin()
-    best_lap = clean_laps.loc[best_lap_idx]
-
-    best_raw_time = best_lap['LapTime'].total_seconds()
-    best_lap_num = best_lap['LapNumber']
-    best_compound = str(best_lap['Compound']).upper()
-    best_tyre_life = best_lap['TyreLife'] if pd.notnull(best_lap['TyreLife']) else 1.0
-
-    # Per-circuit pit loss
-    circuit_key = str(session.event.get("Location", gp)).lower().strip()
-    pit_time_loss = _get_pit_loss(circuit_key, "green")
-
-    # Pre-compute degradation curves for all compounds in this strategy
-    all_compounds = [starting_compound or str(driver_laps.iloc[0]['Compound'])] + [p.compound for p in pit_stops]
-    deg_curves = _build_deg_curves(all_compounds, circuit_key, track_temp, air_temp, year, total_laps)
-    deg_at_best = _lookup_deg(deg_curves, best_compound, int(best_tyre_life))
-    lap1_heavy_pace = best_raw_time + (best_lap_num * FUEL_BURN_PER_LAP) - deg_at_best
-
-    base_paces = {
-        "SOFT": lap1_heavy_pace if best_compound == "SOFT" else lap1_heavy_pace - 0.6,
-        "MEDIUM": lap1_heavy_pace if best_compound == "MEDIUM" else lap1_heavy_pace,
-        "HARD": lap1_heavy_pace if best_compound == "HARD" else lap1_heavy_pace + 0.6,
-    }
-
-    if best_compound == "SOFT":
-        base_paces["MEDIUM"] = lap1_heavy_pace + 0.6
-        base_paces["HARD"] = lap1_heavy_pace + 1.2
-    elif best_compound == "HARD":
-        base_paces["MEDIUM"] = lap1_heavy_pace - 0.6
-        base_paces["SOFT"] = lap1_heavy_pace - 1.2
-
-    for c in ["INTER", "WET", "UNKNOWN"]:
-        if c not in base_paces:
-            base_paces[c] = lap1_heavy_pace + 5.0
-
-    # 2. RUN SIMULATION LOOP
+    # 8. RUN SIMULATION LOOP
     current_compound = starting_compound.upper() if starting_compound else str(driver_laps.iloc[0]['Compound']).upper()
     if pd.isnull(current_compound) or current_compound == "NAN":
         current_compound = "MEDIUM"
@@ -194,51 +207,57 @@ def simulate_race_strategy(
 
     pit_stops_sorted = sorted(pit_stops, key=lambda x: x.lap)
     pit_idx = 0
-
-    if len(valid_actual_laps) > 0:
-        lap1_time = valid_actual_laps.iloc[0]['LapTime'].total_seconds()
-    else:
-        lap1_time = base_paces[current_compound] + 5.0
+    next_compound = current_compound
+    mid_lap = total_laps / 2.0  # fuel reference: median pace ≈ mid-race fuel load
 
     for lap in range(1, total_laps + 1):
         is_pit_in = False
         is_pit_out = False
-        lap_pit_loss = 0.0
 
         if pit_idx < len(pit_stops_sorted) and pit_stops_sorted[pit_idx].lap == lap:
             is_pit_in = True
-            lap_pit_loss = pit_time_loss
             next_compound = pit_stops_sorted[pit_idx].compound.upper()
             pit_idx += 1
 
         if lap > 1 and len(simulated_laps) > 0 and simulated_laps[-1].is_pit_in_lap:
             is_pit_out = True
 
-        if lap == 1:
-            raw_lap_time = lap1_time
+        # Before the strategy diverges from reality, replay the driver's real lap
+        # times — these already embed the actual pit loss and traffic, so an
+        # unchanged strategy reproduces the real race exactly.
+        use_actual = lap < diverge_lap and lap in actual_lap_times
+        traffic_penalty = 0.0
+
+        if use_actual:
+            raw_lap_time = actual_lap_times[lap]
         else:
             base_pace = base_paces.get(current_compound, base_paces["MEDIUM"])
-            fuel_bonus = lap * FUEL_BURN_PER_LAP
+            # Fuel correction relative to mid-race: heavy early (slower),
+            # light late (faster). Zero at mid-distance where median pace sits.
+            fuel_adj = (mid_lap - lap) * FUEL_BURN_PER_LAP
             tyre_penalty = _lookup_deg(deg_curves, current_compound, current_tyre_age)
-            raw_lap_time = base_pace - fuel_bonus + tyre_penalty
+            # Deterministic noise ±0.15s based on lap number parity
+            noise = 0.15 if lap % 3 == 0 else (-0.15 if lap % 3 == 1 else 0.0)
+            raw_lap_time = base_pace + fuel_adj + tyre_penalty + noise
 
-        # Cold tyre out-lap penalty
-        if is_pit_out:
-            raw_lap_time += 1.5
+            # Pit loss is recorded on the out-lap (as in the timing data), along
+            # with the cold-tyre warm-up penalty.
+            if is_pit_out:
+                raw_lap_time += pit_time_loss + 1.5
 
-        # Apply pit loss
-        raw_lap_time += lap_pit_loss
-
-        # Traffic Simulation (Dirty Air)
-        traffic_penalty = 0.0
-        if lap > 1 and lap in traffic_data and len(traffic_data[lap]) > 0:
-            others = sorted(traffic_data[lap])
-            for other_time in others:
-                delta = cumulative_time - other_time
-                if 0.2 < delta < 1.5:
-                    traffic_penalty = 0.4
-                    raw_lap_time += traffic_penalty
-                    break
+            # Traffic simulation (dirty air) — only on modelled laps; real laps
+            # already reflect the traffic the driver was actually in.
+            if lap > 1 and lap in traffic_data and len(traffic_data[lap]) > 0:
+                others_sorted = sorted(traffic_data[lap])
+                for other_time in others_sorted:
+                    delta = cumulative_time - other_time  # positive = we are behind
+                    if 0.2 < delta <= 2.0:
+                        traffic_penalty = 1.0
+                        break
+                    elif 2.0 < delta <= 4.0:
+                        traffic_penalty = 0.3
+                        break
+                raw_lap_time += traffic_penalty
 
         lap_time = raw_lap_time
         cumulative_time += lap_time
@@ -251,7 +270,7 @@ def simulate_race_strategy(
             tyre_age=current_tyre_age,
             is_pit_in_lap=is_pit_in,
             is_pit_out_lap=is_pit_out,
-            traffic_penalty=traffic_penalty,
+            traffic_penalty=round(traffic_penalty, 3),
         )
         simulated_laps.append(sim_lap)
 

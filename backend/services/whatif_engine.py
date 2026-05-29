@@ -5,14 +5,13 @@ Modifies one driver's pit stop decision and recalculates race positions
 for the entire field using actual FastF1 lap data.
 """
 
-import json
 import logging
-import os
 from typing import Dict, List, Optional
 
 import pandas as pd
 
 from services.fastf1_loader import load_session
+from services.simulator import _get_pit_loss
 
 logger = logging.getLogger(__name__)
 
@@ -30,31 +29,12 @@ DEG_RATES: Dict[str, float] = {
     "INTERMEDIATE": 0.04, "WET": 0.03, "UNKNOWN": 0.08,
 }
 
-STREET_CIRCUITS = {
-    "Monaco Grand Prix", "Azerbaijan Grand Prix",
-    "Singapore Grand Prix", "Las Vegas Grand Prix",
-}
-
-DEFAULT_PIT_LOSS = 23.0
-STREET_PIT_LOSS = 20.0
-
-_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+COLD_TYRE_PENALTY = 1.5  # warm-up cost on the out-lap after a stop
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _pit_loss(gp_name: str) -> float:
-    try:
-        with open(os.path.join(_DATA_DIR, "pit_loss.json")) as f:
-            data = json.load(f)
-        if gp_name in data:
-            return float(data[gp_name])
-    except Exception:
-        pass
-    return STREET_PIT_LOSS if gp_name in STREET_CIRCUITS else DEFAULT_PIT_LOSS
-
 
 def _build_timeline(laps_df: pd.DataFrame, driver: str) -> Dict[int, Dict]:
     """lap_number → {time, compound, tyre_age}"""
@@ -109,8 +89,15 @@ def _predict_lap(
     lap_num: int,
     tyre_age: int,
     baselines: Dict[str, float],
+    total_laps: int = 60,
+    pace_offset: float = 0.0,
 ) -> float:
-    """Predict lap time via peer laps, falling back to physics model."""
+    """Predict lap time via peer laps, falling back to physics model.
+
+    `pace_offset` shifts field-median peer pace onto the target driver's own
+    level (negative = the driver is faster than the field), so a front-runner's
+    synthesized laps aren't dragged toward midfield pace.
+    """
     tyre_age = max(1, tyre_age)
     try:
         mask = (
@@ -119,16 +106,23 @@ def _predict_lap(
             & (laps_df["LapNumber"].between(max(1, lap_num - 4), lap_num + 4))
             & laps_df["LapTime"].notna()
             & (laps_df["Driver"] != driver)
+            # Exclude pit in/out laps: their times embed the pit-lane loss and
+            # would otherwise contaminate green-flag pace (esp. at tyre age 1).
+            & laps_df["PitInTime"].isna()
+            & laps_df["PitOutTime"].isna()
         )
         peer = laps_df[mask]["LapTime"].dt.total_seconds()
         if len(peer) >= 3:
-            return round(float(peer.median()), 3)
+            return round(float(peer.median()) + pace_offset, 3)
     except Exception:
         pass
-    # Physics fallback
+    # Physics fallback. Fuel is referenced to mid-race (base ≈ a representative
+    # mid-distance lap): heavier/slower early, lighter/faster late, zero at
+    # half-distance. A naive `- lap_num * 0.06` would make late laps too fast.
     base = baselines.get(compound, baselines.get("MEDIUM", 90.0))
-    predicted = base + tyre_age * DEG_RATES.get(compound, 0.08) - lap_num * 0.06
-    return round(max(predicted, base * 0.97), 3)
+    fuel_adj = (total_laps / 2.0 - lap_num) * 0.06
+    predicted = base + tyre_age * DEG_RATES.get(compound, 0.08) + fuel_adj
+    return round(max(predicted, base * 0.95), 3)
 
 
 def _compute_cumulative(
@@ -238,7 +232,8 @@ def run_whatif(
     laps = session.laps
     gp_name = str(session.event.get("EventName", ""))
     total_laps = int(laps["LapNumber"].max())
-    pit_loss = _pit_loss(gp_name)
+    circuit_key = str(session.event.get("Location", gp_name)).lower().strip()
+    pit_loss = _get_pit_loss(circuit_key, "green")
     new_compound = new_compound.upper()
 
     all_drivers: List[str] = sorted(laps["Driver"].unique().tolist())
@@ -257,66 +252,105 @@ def run_whatif(
 
     baselines = _driver_baselines(target_tl, compound_before)
 
+    # Anchor field-median peer pace to this driver: offset = how much faster
+    # (or slower) the driver's clean laps are than the field's. Clamped to keep
+    # outliers (tiny sample, wet/dry mix) from skewing predictions.
+    pace_offset = 0.0
+    try:
+        drv_q = laps.pick_drivers(driver).pick_quicklaps()["LapTime"].dt.total_seconds()
+        fld_q = laps.pick_quicklaps()["LapTime"].dt.total_seconds()
+        if len(drv_q) >= 3 and len(fld_q) >= 5:
+            pace_offset = max(-2.0, min(2.0, float(drv_q.median() - fld_q.median())))
+    except Exception:
+        pass
+
+    # Field's actual cumulative times — used for the final comparison and to
+    # detect dirty air on the laps we synthesize for the target driver.
+    actual_cumul = _compute_cumulative(timelines, all_drivers, total_laps)
+
     # -----------------------------------------------------------------------
-    # Build simulated timeline for target driver
+    # Build simulated timeline for target driver in a single ordered pass, so a
+    # running cumulative time is available to model traffic on synthesized laps.
     # -----------------------------------------------------------------------
     sim_tl: Dict[int, Optional[Dict]] = {}
+    running = 0.0
+    pitting_earlier = new_pit_lap <= original_pit_lap
 
-    if new_pit_lap <= original_pit_lap:
-        # Pitting EARLIER (or same lap, different compound)
-        for l in range(1, total_laps + 1):
+    for l in range(1, total_laps + 1):
+        use_real = False
+        is_pit = False
+        compound: Optional[str] = None
+        tyre_age = 0
+
+        if pitting_earlier:
+            # Pitting EARLIER (or same lap, different compound)
             if l < new_pit_lap:
-                sim_tl[l] = dict(target_tl[l]) if l in target_tl else None
+                use_real = True
             elif l == new_pit_lap:
-                ta = target_tl.get(l - 1, {}).get("tyre_age", l - 1)
-                pred = _predict_lap(laps, driver, compound_before, l, ta, baselines)
-                sim_tl[l] = {
-                    "time": round(pred + pit_loss, 3),
-                    "compound": compound_before,
-                    "tyre_age": ta,
-                    "is_simulated": True,
-                }
+                compound = compound_before
+                tyre_age = target_tl.get(l - 1, {}).get("tyre_age", l - 1)
+                is_pit = True
             else:
-                ta_new = l - new_pit_lap
-                pred = _predict_lap(laps, driver, new_compound, l, ta_new, baselines)
-                sim_tl[l] = {
-                    "time": pred,
-                    "compound": new_compound,
-                    "tyre_age": ta_new,
-                    "is_simulated": True,
-                }
-    else:
-        # Pitting LATER — driver stays out on compound_before past original_pit_lap
-        for l in range(1, total_laps + 1):
+                compound = new_compound
+                tyre_age = l - new_pit_lap
+        else:
+            # Pitting LATER — extend compound_before past the original stop
             if l < original_pit_lap:
-                sim_tl[l] = dict(target_tl[l]) if l in target_tl else None
-            elif original_pit_lap <= l < new_pit_lap:
-                ta_ext = tyre_age_at_orig + (l - original_pit_lap) + 1
-                pred = _predict_lap(laps, driver, compound_before, l, ta_ext, baselines)
-                sim_tl[l] = {
-                    "time": pred,
-                    "compound": compound_before,
-                    "tyre_age": ta_ext,
-                    "is_simulated": True,
-                }
-            elif l == new_pit_lap:
-                ta_ext = tyre_age_at_orig + (l - original_pit_lap) + 1
-                pred = _predict_lap(laps, driver, compound_before, l, ta_ext, baselines)
-                sim_tl[l] = {
-                    "time": round(pred + pit_loss, 3),
-                    "compound": compound_before,
-                    "tyre_age": ta_ext,
-                    "is_simulated": True,
-                }
+                use_real = True
+            elif l <= new_pit_lap:
+                compound = compound_before
+                tyre_age = tyre_age_at_orig + (l - original_pit_lap) + 1
+                is_pit = (l == new_pit_lap)
             else:
-                ta_new = l - new_pit_lap
-                pred = _predict_lap(laps, driver, new_compound, l, ta_new, baselines)
-                sim_tl[l] = {
-                    "time": pred,
-                    "compound": new_compound,
-                    "tyre_age": ta_new,
-                    "is_simulated": True,
-                }
+                compound = new_compound
+                tyre_age = l - new_pit_lap
+
+        # Replay real laps wherever the strategy is unchanged.
+        if use_real:
+            data = target_tl.get(l)
+            sim_tl[l] = dict(data) if data else None
+            if data and data.get("time") is not None:
+                running += data["time"]
+            continue
+
+        lap_time = _predict_lap(laps, driver, compound, l, tyre_age, baselines, total_laps, pace_offset)
+        traffic = 0.0
+
+        if is_pit:
+            # Pit loss is charged on the lap the car enters the pits. The peer
+            # pool excludes out-laps, so it is not double-counted afterward.
+            lap_time += pit_loss
+        else:
+            # Cold-tyre warm-up on the out-lap (first lap on the new compound).
+            if l == new_pit_lap + 1:
+                lap_time += COLD_TYRE_PENALTY
+            # Dirty air: time lost stuck behind the nearest car ahead.
+            if l > 1:
+                nearest_ahead: Optional[float] = None
+                for d in all_drivers:
+                    if d == driver:
+                        continue
+                    ot = actual_cumul.get(d, {}).get(l)
+                    if ot is None:
+                        continue
+                    delta = running - ot  # positive = we are behind this car
+                    if delta > 0 and (nearest_ahead is None or delta < nearest_ahead):
+                        nearest_ahead = delta
+                if nearest_ahead is not None:
+                    if 0.2 < nearest_ahead <= 2.0:
+                        traffic = 1.0
+                    elif 2.0 < nearest_ahead <= 4.0:
+                        traffic = 0.3
+                lap_time += traffic
+
+        lap_time = round(lap_time, 3)
+        sim_tl[l] = {
+            "time": lap_time,
+            "compound": compound,
+            "tyre_age": tyre_age,
+            "is_simulated": True,
+        }
+        running += lap_time
 
     # Fill any remaining None slots with actual data
     for l in range(1, total_laps + 1):
@@ -326,7 +360,6 @@ def run_whatif(
     # -----------------------------------------------------------------------
     # Cumulative times
     # -----------------------------------------------------------------------
-    actual_cumul = _compute_cumulative(timelines, all_drivers, total_laps)
     sim_timelines = {
         d: ({k: v for k, v in sim_tl.items() if v is not None} if d == driver else timelines[d])
         for d in all_drivers
