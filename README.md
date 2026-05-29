@@ -61,8 +61,8 @@ Degradation curve and pit window prediction tool:
 | Charts | Recharts (lap/strategy), D3 (telemetry/comparison SVG) |
 | Flags | flag-icons (SVG sprite, no emoji dependency) |
 | Backend | Python 3.9, FastAPI, uvicorn |
-| Data | FastF1 3.7 (official F1 timing data, 2018–present) |
-| ML | scikit-learn GradientBoostingRegressor (degradation model) |
+| Data | FastF1 3.3 (official F1 timing data, 2018–present) |
+| ML | XGBoost gradient-boosted regressor (tyre degradation model) |
 
 ---
 
@@ -152,11 +152,126 @@ f1_tele/
 
 ---
 
-## Training the Degradation Model
+## Tyre Degradation Model
+
+The PitSense degradation curves, pit-window urgency rating, and the strategy
+simulator's tyre term are all driven by a machine-learning model that predicts
+**lap-time loss from tyre wear**.
+
+### Architecture overview
+
+A single-stream tabular pipeline. Raw FastF1 timing data is converted to
+per-lap degradation samples, branched into separate dry- and wet-condition
+models, then served as lap-by-lap curves to the strategy features.
+
+```
+            +-------------------------------------+
+            |        FastF1 session data          |
+            |   2022–2025, every race weekend     |
+            |   laps + weather + telemetry        |
+            +------------------+------------------+
+                               |
+            +------------------V------------------+
+            |   Feature Engineering               |
+            |   (ml/feature_engineering.py)       |
+            |   - per-stint reference lap         |
+            |     (stint start, tyres warmed)     |
+            |   - target = lap_time_delta vs ref  |
+            |   - fuel-corrected lap times        |
+            |   - circuit label-encoding          |
+            |   - compound one-hot (S/M/H/I/W)    |
+            |   - outlier clip: delta ∈ [-1.5,6]s |
+            |   => 73,061 laps x 15 features      |
+            +------------------+------------------+
+                               |
+                  +------------+------------+
+                  |                         |
+        +---------V---------+     +---------V---------+
+        |    Dry samples    |     |    Wet samples    |
+        +---------+---------+     +---------+---------+
+                  |                         |
+        +---------V---------+     +---------V---------+
+        |   XGBRegressor    |     |   XGBRegressor    |
+        |  1000 trees, d=6  |     |  1000 trees, d=6  |
+        |  lr 0.05, subsamp |     |  lr 0.05, subsamp |
+        |  0.8, early stop  |     |  0.8, early stop  |
+        +---------+---------+     +---------+---------+
+                  |                         |
+                  +------------+------------+
+                               |
+            +------------------V------------------+
+            |   Inference (ml/model_registry.py)  |
+            |   - predict delta per tyre age 1..N |
+            |   - monotonic guard + light smooth  |
+            |   - confidence band + cliff lap     |
+            +------------------+------------------+
+                               |
+          +-----------------+--+---------------+
+          |                 |                  |
+    +-----V-----+    +------V------+   +-------V--------+
+    | PitSense  |    | Pit-window  |   |   Strategy     |
+    | deg curve |    |  urgency    |   |  simulator     |
+    +-----------+    +-------------+   +----------------+
+```
+
+### Model components
+
+**Feature engineering** (`ml/feature_engineering.py`)
+- **Target:** `lap_time_delta` — seconds slower than the stint's reference lap
+  (taken a few laps in, once tyres are at temperature), so the model learns
+  *wear* rather than absolute pace.
+- **Fuel correction:** lap times are de-trended for fuel burn before computing
+  the delta, so degradation isn't confounded with the car getting lighter.
+- **Outlier handling:** deltas outside [−1.5, 6.0] s (safety cars, traffic laps,
+  errors) are dropped.
+- **Encoding:** circuit is label-encoded; compound is one-hot (soft / medium /
+  hard / inter / wet).
+
+**Feature set (15)**
+- Tyre: `tyre_age`, `is_fresh_tyre`
+- Conditions: `track_temp`, `air_temp`, `humidity`
+- Context: `circuit_encoded`, `position`
+- Pace proxies: `speed_i1`, `speed_i2`, `speed_st` (sector / speed-trap speeds)
+- Compound one-hots: `compound_{SOFT,MEDIUM,HARD,INTER,WET}`
+
+**Model** (`ml/train.py`)
+- `XGBRegressor` (gradient-boosted trees) inside a scikit-learn `Pipeline`.
+- **Two models**, dry and wet, selected at inference by track conditions.
+- Hyperparameters: 1000 trees, `max_depth=6`, `learning_rate=0.05`,
+  `subsample=0.8`, `colsample_bytree=0.8`, `min_child_weight=20`, early stopping
+  (50 rounds on validation MAE).
+- 85 / 15 train/test split, trained on **73,061 laps** across **2022–2025**.
+
+**Inference** (`ml/model_registry.py`)
+- Builds the degradation curve by predicting the delta at each tyre age 1…N.
+- Applies a monotonic guard (degradation shouldn't drop sharply mid-stint) and
+  light smoothing, then derives a confidence band and the "cliff" lap where
+  pace falls off.
+- Falls back to a linear curve if no trained model is present, so endpoints
+  always respond.
+
+### Model performance
+
+Held-out test set (15% split):
+
+| Model | MAE | R² |
+|---|---|---|
+| **Dry** | **0.487 s** | 0.473 |
+| **Wet** | **0.526 s** | 0.508 |
+
+Mean absolute error under ~0.5 s/lap means a typical prediction lands within
+about half a second of the real lap-time loss. R² in the ~0.47–0.51 range
+reflects how noisy real tyre degradation is — lap times are also shaped by fuel,
+traffic, track evolution, and driver inputs, which the model deliberately leaves
+out so it isolates the tyre-wear signal.
+
+### Training
 
 ```bash
 cd backend
-./venv/Scripts/python.exe ml/train.py --seasons 2022 2023 2024
+./venv/Scripts/python.exe ml/train.py --seasons 2022 2023 2024 2025
 ```
 
-Model is saved to `backend/ml/saved_models/`. Without a trained model the API returns a linear fallback curve.
+Per-lap features are extracted and cached to
+`backend/data/training_data_<range>.parquet`; the dry and wet models are saved
+to `backend/ml/saved_models/`.
