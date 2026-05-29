@@ -462,56 +462,6 @@ export type AppMode = 'home' | 'latest' | 'analysis';
 
 export type TabView = 'laps' | 'telemetry' | 'comparison' | 'strategy' | 'degradation' | 'weather' | 'simulator' | 'replay';
 
-// ---------------------------------------------------------------------------
-// What-If Simulator
-// ---------------------------------------------------------------------------
-
-export interface WhatIfChange {
-  driver: string;
-  original_pit_lap: number;
-  new_pit_lap: number;
-  new_compound: string;
-}
-
-export interface WhatIfRequest {
-  year: number;
-  gp_name: string;
-  session: string;
-  changes: WhatIfChange[];
-}
-
-export interface WhatIfLap {
-  lap: number;
-  position: number;
-  gap: number;
-  time: number;
-  compound: string;
-  tyre_age: number;
-  is_simulated: boolean;
-}
-
-export interface DriverFinalResult {
-  driver: string;
-  position: number;
-  gap: number | null;
-}
-
-export interface WhatIfSummary {
-  driver: string;
-  actual_position: number;
-  simulated_position: number;
-  position_change: number;
-  time_delta: number;
-}
-
-export interface WhatIfResponse {
-  summary: WhatIfSummary;
-  actual_laps: WhatIfLap[];
-  simulated_laps: WhatIfLap[];
-  all_drivers_actual_final: DriverFinalResult[];
-  all_drivers_simulated_final: DriverFinalResult[];
-}
-
 export interface AppState {
   selectedYear: number;
   selectedGP: string | null;

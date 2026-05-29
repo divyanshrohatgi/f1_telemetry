@@ -77,6 +77,7 @@ export default function MiniTrackAnimation({ colors, circuitPoints, rotation = 0
     let animId: number;
 
     function draw() {
+      if (!ctx) return;
       ctx.clearRect(0, 0, cw, ch);
 
       // Track

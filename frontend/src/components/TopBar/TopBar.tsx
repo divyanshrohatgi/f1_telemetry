@@ -79,9 +79,9 @@ const TopBar: React.FC<TopBarProps> = ({
           activeColor="#00FF87" isDark={isDark} />
       </div>
 
-      {/* Session info strip */}
+      {/* Session info strip — hidden on mobile */}
       {mode === 'analysis' && (
-        <div className="flex items-center gap-5 px-5 flex-1 overflow-hidden">
+        <div className="hidden md:flex items-center gap-5 px-5 flex-1 overflow-hidden">
           {sessionMeta ? (
             <>
               <FlagIcon country={sessionMeta.country} height={20} />

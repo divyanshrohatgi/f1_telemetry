@@ -9,6 +9,7 @@ backend/cache/
 
 backend/data/raw/
 backend/data/training_data_*.parquet
+backend/ml/saved_models/
 
 # Node
 frontend/node_modules/

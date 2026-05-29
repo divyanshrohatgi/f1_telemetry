@@ -185,8 +185,8 @@ function ResultsTable({ results, isLoading, onReload }: { results: SessionResult
         </div>
       </div>
       {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
+        <table style={{ minWidth: 680, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
               {[
