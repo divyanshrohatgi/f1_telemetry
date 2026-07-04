@@ -80,8 +80,9 @@ start.bat
 Or manually:
 ```bash
 cd backend
-./venv/Scripts/activate
-python -m uvicorn api.main:app --reload --port 8000
+python -m venv .venv            # first time only
+.venv/Scripts/pip install -r requirements.txt   # first time only
+.venv/Scripts/python -m uvicorn api.main:app --reload --port 8002
 ```
 
 The first time a session is loaded FastF1 will download data from F1 servers. Subsequent loads use the local cache at `backend/cache/`.
@@ -100,7 +101,9 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:5173`
+Visit `http://localhost:5174`
+
+The Vite dev server proxies `/api` and `/ws` to the backend at `http://localhost:8002`, so the backend must be running on 8002 (the default in `backend/start.bat`).
 
 ---
 
@@ -269,7 +272,7 @@ out so it isolates the tyre-wear signal.
 
 ```bash
 cd backend
-./venv/Scripts/python.exe ml/train.py --seasons 2022 2023 2024 2025
+.venv/Scripts/python.exe ml/train.py --seasons 2022 2023 2024 2025
 ```
 
 Per-lap features are extracted and cached to
